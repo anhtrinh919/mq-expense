@@ -18,11 +18,11 @@
 
 ## Global Out of Scope
 
-- **No server-side data storage:** The server never persists any user data — not receipts, not expense rows, not reports, not profile info. Zero exceptions.
+- **No server-side data storage** *(amended in Phase 3, with user sign-off)*: Phases 1–2 the server persisted nothing. From Phase 3, the server stores each user's data **encrypted at rest, server-managed, scoped strictly per account** — solely to sync across that user's own devices. It is not zero-knowledge (the running server can decrypt). Still excluded: any storage the user did not create, and any cross-user data access.
 - **No Macquarie Finance system integration:** No API connection to Macquarie's finance or reimbursement systems. The user downloads the output files and emails them manually.
-- **No in-app email sending:** The app generates the files; the user sends the email themselves.
+- **No in-app email sending:** The app sends no email at all — not finance reports, and not auth/recovery mail. A forgotten PIN is reset out-of-band by the administrator.
 - **No approval workflow:** No manager review, no approval chain, no per-report sign-off inside the app.
-- **No shared visibility between users:** Even the manager who invites peers cannot see their expenses or reports.
+- **No shared visibility of expense data between users:** Even the manager who invites peers cannot see their expenses, receipts, or reports. The manager sees only a name+email+status roster of who has joined (added in Phase 3).
 - **No global country code library:** Users manage their own country → account code mappings. A built-in country registry is not in scope.
 - **No mobile app (iOS/Android native):** The web app must work well on mobile browsers, but a native app is out of scope.
 - **No public self-registration:** Access is invite-only in Phase 3. There is no public sign-up.
