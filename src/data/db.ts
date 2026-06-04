@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { Profile, CountryCode, Expense, StoredImage, ExpenseReport } from "./types";
+import type { Profile, CountryCode, Expense, StoredImage, ExpenseReport, CaptureDraft } from "./types";
 
 // All user data lives in this one IndexedDB database, on the user's device only.
 export class MqExpenseDB extends Dexie {
@@ -8,6 +8,8 @@ export class MqExpenseDB extends Dexie {
   expenses!: Table<Expense, string>;
   images!: Table<StoredImage, string>;
   reports!: Table<ExpenseReport, string>;
+  // Transient in-progress capture queue (survives reload). NOT part of a backup.
+  drafts!: Table<CaptureDraft, string>;
 
   constructor() {
     super("mq-expense");
@@ -45,6 +47,15 @@ export class MqExpenseDB extends Dexie {
             if (e.baseCurrency === undefined) e.baseCurrency = "VND";
           });
       });
+    // Phase 2: transient capture-draft store (in-progress queue across reloads).
+    this.version(3).stores({
+      profile: "id",
+      countryCodes: "id, sortOrder",
+      expenses: "id, date, country, status, reportId",
+      images: "id, expenseId",
+      reports: "id, generatedAt, status",
+      drafts: "id",
+    });
   }
 }
 

@@ -79,6 +79,32 @@ export interface StoredImage {
   blob: Blob;
 }
 
+// ---- Transient capture draft (in-progress queue, survives reload; never backed up) ----
+
+export interface CaptureDraftItem {
+  id: string;
+  fileName: string;
+  fileType: string;
+  fileBlob: Blob;
+  status: "queued" | "reading" | "ready" | "lowconf" | "error";
+  bwScanMime?: string;
+  bwScanData?: string; // base64 of the B&W scan returned by the server
+  error?: string;
+  date: string;
+  amount: string;
+  currency: string;
+  country: string;
+  accountCode: string;
+  description: string;
+}
+
+export interface CaptureDraft {
+  id: "capture"; // singleton
+  idx: number;
+  items: CaptureDraftItem[];
+  savedAt: number;
+}
+
 export type ReportStatus = "generated" | "paid";
 
 export interface ExpenseReport {
