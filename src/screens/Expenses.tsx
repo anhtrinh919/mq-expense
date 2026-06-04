@@ -5,7 +5,7 @@ import type { Expense, CountryCode } from "../data/types";
 import { getFx, ApiError } from "../lib/api";
 import { toVND, effectiveRate, conversionNote, rateSource } from "../lib/currency";
 import { getProfile } from "../data/repos";
-import { vnd, num, fmtDateShort } from "../lib/format";
+import { vnd, num, fmtDate } from "../lib/format";
 import { PageHeader, StatusChip, EmptyState, Modal } from "../components/ui";
 import ReceiptViewer from "../components/ReceiptViewer";
 import "./Expenses.css";
@@ -83,7 +83,7 @@ export default function Expenses() {
           </div>
           {rows.map((e) => (
             <div className="exp-row" key={e.id}>
-              <span className="num exp-date">{fmtDateShort(e.date)}</span>
+              <span className="num exp-date">{fmtDate(e.date)}</span>
               <span className="exp-desc">{e.description || <em className="tertiary">(no description)</em>}</span>
               <span className="num exp-orig tertiary">{e.originalCurrency && e.originalCurrency !== "VND" ? `${num(e.originalAmount ?? 0)} ${e.originalCurrency}` : "—"}</span>
               <span className="num exp-rate tertiary">{e.exchangeRate ? num(e.exchangeRate, 0) : "1"}</span>
@@ -121,7 +121,7 @@ export default function Expenses() {
           <p className="muted">The receipt photo and scan will also be removed. This cannot be undone.</p>
           <div className="del-card card">
             <strong>{editing?.description || deleting.description || "(no description)"}</strong>
-            <div className="num muted">{vnd(deleting.amountVND)} · {fmtDateShort(deleting.date)} · {deleting.country}</div>
+            <div className="num muted">{vnd(deleting.amountVND)} · {fmtDate(deleting.date)} · {deleting.country}</div>
           </div>
         </Modal>
       )}

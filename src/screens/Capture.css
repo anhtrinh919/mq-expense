@@ -7,6 +7,26 @@
   gap: var(--space-3);
   margin-bottom: var(--space-6);
 }
+.cap-done {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-4);
+  border-left: 3px solid var(--accent);
+}
+.cap-done-body { flex: 1; }
+.cap-done-body h2 { font-size: 16px; margin: 0; }
+.cap-done-body p { font-size: 13px; margin-top: 2px; }
+.cap-done-ctas {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .cap-done { flex-direction: column; align-items: flex-start; }
+  .cap-done-ctas { width: 100%; }
+}
 .dropzone {
   border: 2px dashed var(--border-default);
   border-radius: var(--radius-xl);

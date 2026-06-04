@@ -39,9 +39,12 @@ export default function Capture() {
   const [rate, setRate] = useState<{ ccy: string; value: number } | null>(null);
   const [rateErr, setRateErr] = useState<string | null>(null);
   const [savedFlash, setSavedFlash] = useState<string | null>(null);
+  const [doneCount, setDoneCount] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const rateCache = useRef<Map<string, number>>(new Map());
+  // "Take photo" only makes sense on a touch device with a camera — hide it on desktop.
+  const [isTouch] = useState(() => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
 
   useEffect(() => {
     getProfile().then(setProfile);
@@ -54,6 +57,7 @@ export default function Capture() {
   function addFiles(files: FileList | File[]) {
     const arr = Array.from(files);
     if (arr.length === 0) return;
+    setDoneCount(0); // starting a fresh batch clears the previous "logged" confirmation
     setQueue((q) => [...q, ...arr.map(makeItem)]);
   }
 
@@ -160,6 +164,7 @@ export default function Capture() {
     );
     setSavedFlash(vnd(vndAmt));
     setTimeout(() => setSavedFlash(null), 1400);
+    setDoneCount((n) => n + 1);
     advance();
   }
 
@@ -172,17 +177,30 @@ export default function Capture() {
           <h1 className="page-title">Capture</h1>
           <span className="muted">queue · 0</span>
         </div>
+        {doneCount > 0 && (
+          <div className="cap-done card">
+            <div className="success-check">✓</div>
+            <div className="cap-done-body">
+              <h2>{doneCount} receipt{doneCount > 1 ? "s" : ""} logged</h2>
+              <p className="muted">Saved on this device as Unsubmitted. Bundle them into a Macquarie report whenever you're ready.</p>
+            </div>
+            <div className="cap-done-ctas">
+              <button className="btn" onClick={() => navigate("/expenses")}>View expenses →</button>
+              <button className="btn btn-primary" onClick={() => navigate("/reports")}>Create a report →</button>
+            </div>
+          </div>
+        )}
         <div
           className="dropzone"
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}
         >
           <div className="dz-graphic" aria-hidden>🧾</div>
-          <h2 className="serif">Drop receipts here</h2>
+          <h2 className="serif">{doneCount > 0 ? "Add more receipts" : "Drop receipts here"}</h2>
           <p className="muted">PDF or any image · several files at once is fine</p>
           <div className="dz-ctas">
             <button className="btn btn-primary" onClick={() => fileInput.current?.click()}>Choose files</button>
-            <button className="btn cap-camera" onClick={() => cameraInput.current?.click()}>📷 Take photo</button>
+            {isTouch && <button className="btn cap-camera" onClick={() => cameraInput.current?.click()}>📷 Take photo</button>}
           </div>
           <input ref={fileInput} type="file" accept={ACCEPT} multiple hidden onChange={(e) => e.target.files && addFiles(e.target.files)} />
           <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={(e) => e.target.files && addFiles(e.target.files)} />

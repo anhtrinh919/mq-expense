@@ -41,8 +41,8 @@ def generate_expense_xlsx(rows, out_path, period_label):
         if w:
             ws.column_dimensions[get_column_letter(col)].width = w
 
-    hdr(1, "#", 8); hdr(2, "Date", 11); hdr(3, "Description", 28)
-    hdr(4, "Account Code", 18); hdr(5, "Amount (VND)", 14); hdr(6, "Notes", 28)
+    hdr(1, "#", 8); hdr(2, "Date", 11); hdr(3, "Description", 44)
+    hdr(4, "Account Code", 18); hdr(5, "Amount (VND)", 16)
     ws.row_dimensions[1].height = 24
 
     def parse_date(d):
@@ -58,7 +58,7 @@ def generate_expense_xlsx(rows, out_path, period_label):
         amt = int(round(float(r.get("amountVND", 0) or 0)))
         subtotals[acc] = subtotals.get(acc, 0) + amt
         fill = ALT if excel_row % 2 == 0 else "FFFFFF"
-        vals = [receipt_no, parse_date(r.get("date", "")), r.get("description", ""), acc, amt, r.get("notes", "")]
+        vals = [receipt_no, parse_date(r.get("date", "")), r.get("description", ""), acc, amt]
         for c, v in enumerate(vals, 1):
             cell = ws.cell(row=excel_row, column=c, value=v)
             cell.font = Font(name="Arial", size=10)
