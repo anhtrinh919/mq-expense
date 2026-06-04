@@ -27,3 +27,26 @@ const CURRENCY_BY_COUNTRY = new Map(COUNTRY_OPTIONS.map((o) => [o.country, o.cur
 export function currencyForCountry(country: string): string {
   return CURRENCY_BY_COUNTRY.get(country) ?? "VND";
 }
+
+// Friendly names for the currencies a reimbursement might use. Used in the picker label.
+export const CURRENCY_NAME: Record<string, string> = {
+  VND: "Vietnamese đồng",
+  THB: "Thai baht",
+  KHR: "Cambodian riel",
+  MMK: "Myanmar kyat",
+  AUD: "Australian dollar",
+  SGD: "Singapore dollar",
+  MYR: "Malaysian ringgit",
+  IDR: "Indonesian rupiah",
+  PHP: "Philippine peso",
+  USD: "US dollar",
+  GBP: "Pound sterling",
+};
+
+/** Distinct reimbursement currencies offered in the override picker. */
+export const CURRENCIES: string[] = Array.from(new Set(COUNTRY_OPTIONS.map((o) => o.currency)));
+
+export function currencyLabel(code: string): string {
+  const name = CURRENCY_NAME[code];
+  return name ? `${code} — ${name}` : code;
+}
