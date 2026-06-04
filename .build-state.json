@@ -1,9 +1,9 @@
 {
-  "phase": 1,
-  "feature": "single-user-flow",
-  "step": "phase-complete",
+  "phase": 2,
+  "feature": "onboarding-polish",
+  "step": "spec-complete",
   "reviewIteration": 0,
-  "requirementsHash": "7ab9aacabefac77e5c70a965c08ae2d4cdc313cd698e99462ca0bbf8c385f8d9",
+  "requirementsHash": "9872368a00aca55a1d6b9c2da69541414e1b113420ef1c17d9cc1140db5b61d0",
   "currentSubStep": null,
   "dogfoodPid": null
 }

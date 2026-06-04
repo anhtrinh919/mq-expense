@@ -12,7 +12,10 @@ MQ Expense is a focused, private expense tracker that lives in a browser tab and
 | Expenses | Full running log — view, filter by date/country, edit, delete individual entries | Ph1 |
 | Reports — Create | Pick period, review included expenses, generate PDF + Excel | Ph1 |
 | Reports — History | List of all submitted and archived reports; mark paid | Ph1 |
-| Backup | Export all data as a file; import from a file | Ph1 |
+| Backup | Export all data as a file (import/restore relocated to Onboarding + Settings in Ph2) | Ph1 |
+| Onboarding | Guided first run — name, home country → reimbursement currency, optional PIN, quick guide; or restore from a backup | Ph2 |
+| PIN lock | Soft lock on app open when a PIN is set; unlock or reset (reset never loses data) | Ph2 |
+| Settings | Single config home — absorbs Setup (Profile, Invoice To, Bank, Country Codes, Markup) + Base Currency + Change/Remove PIN + Restore | Ph2 |
 | Invite (manager view) | Generate invite links/codes for peers | Ph3 |
 | Join (peer onboarding) | Accept invite, set up own profile, enter own workspace | Ph3 |
 | Account | Login/logout, session management for multi-user | Ph3 |
@@ -56,7 +59,9 @@ Phase 3 additions:
 
 ## Named Flows
 
-- **Setup (Ph1):** Open app for the first time (Ph1) → Navigate to Setup (Ph1) → Fill in Profile, Invoice To, Bank Details (Ph1) → Add country codes for the countries you work in (Ph1) → Set currency markup (Ph1) → Ready to capture (Ph1)
+- **Onboarding (Ph2):** Open app for the very first time → Welcome (data stays on this device) → Enter name + pick home country (sets reimbursement currency, overridable) → Optionally set a PIN (skippable) → 3-point quick guide → Land ready to capture. (Or "Restore from a backup instead" → import `.mqx` → Home.)
+
+- **Setup (Ph1; becomes Settings in Ph2):** Open app for the first time (Ph1) → Navigate to Setup (Ph1) → Fill in Profile, Invoice To, Bank Details (Ph1) → Add country codes for the countries you work in (Ph1) → Set currency markup (Ph1) → Ready to capture (Ph1)
 
 - **Capture (Ph1):** Tap Capture (Ph1) → Upload receipt photo (Ph1) → Select country + enter description (Ph1) → AI reads date and amount from the photo (Ph1) → Review the pre-filled form (Ph1) → Confirm/correct any fields (Ph1) → Save → Expense added to log (Ph1)
 
