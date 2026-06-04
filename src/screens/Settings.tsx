@@ -13,26 +13,44 @@ import { PageHeader, Banner } from "../components/ui";
 import { COUNTRY_OPTIONS, CURRENCIES, currencyForCountry, currencyLabel } from "../lib/countries";
 import { hashPin, isValidPin } from "../lib/pin";
 import { importAll } from "../lib/backup";
+import { loadDraft, saveDraft, clearDraft } from "../lib/formDraft";
 import "./Settings.css";
+
+const DRAFT_KEY = "mqx:draft:settings";
 
 export default function Settings() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [codes, setCodes] = useState<CountryCode[]>([]);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [showErrors, setShowErrors] = useState(false);
+  const [restored, setRestored] = useState(false);
+  const dirty = useRef(false);
 
   useEffect(() => {
-    getProfile().then(setProfile);
+    getProfile().then((p) => {
+      const draft = loadDraft<Profile>(DRAFT_KEY);
+      if (draft) { setProfile(draft); setRestored(true); }
+      else setProfile(p);
+    });
     listCountryCodes().then(setCodes);
   }, []);
+
+  // Autosave unsaved field edits so a reload mid-edit doesn't lose them.
+  useEffect(() => {
+    if (!profile || !dirty.current) return;
+    const t = setTimeout(() => saveDraft(DRAFT_KEY, profile), 400);
+    return () => clearTimeout(t);
+  }, [profile]);
 
   if (!profile) return null;
   const gaps = profileGaps(profile);
 
   function patch(p: Partial<Profile>) {
+    dirty.current = true;
     setProfile((cur) => (cur ? { ...cur, ...p } : cur));
   }
   function patchSub<K extends keyof Profile>(key: K, sub: Partial<Profile[K]>) {
+    dirty.current = true;
     setProfile((cur) => (cur ? { ...cur, [key]: { ...(cur[key] as object), ...sub } } : cur));
   }
 
@@ -40,6 +58,9 @@ export default function Settings() {
     if (!profile) return;
     await saveProfile(profile);
     for (const c of codes) await upsertCountryCode(c);
+    clearDraft(DRAFT_KEY);
+    dirty.current = false;
+    setRestored(false);
     setSavedAt(Date.now());
     setProfile({ ...profile, updatedAt: Date.now() });
   }
@@ -66,6 +87,10 @@ export default function Settings() {
           </div>
         }
       />
+
+      {restored && (
+        <Banner kind="attention" title="Restored your unsaved edits" body="Picked up changes you hadn't saved before the page reloaded. Save when you're happy with them." />
+      )}
 
       {gaps.length > 0 && (
         <Banner
