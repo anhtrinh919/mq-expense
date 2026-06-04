@@ -1,11 +1,11 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { listExpenses, listCountryCodes, updateExpense, deleteExpense, type ExpenseFilter } from "../data/repos";
 import type { Expense, CountryCode } from "../data/types";
 import { getFx, ApiError } from "../lib/api";
 import { toVND, effectiveRate, conversionNote, rateSource } from "../lib/currency";
 import { getProfile } from "../data/repos";
-import { vnd, num, fmtDate } from "../lib/format";
+import { vnd, money, num, fmtDate } from "../lib/format";
 import { PageHeader, StatusChip, EmptyState, Modal } from "../components/ui";
 import ReceiptViewer from "../components/ReceiptViewer";
 import "./Expenses.css";
@@ -14,7 +14,9 @@ export default function Expenses() {
   const [rows, setRows] = useState<Expense[]>([]);
   const [codes, setCodes] = useState<CountryCode[]>([]);
   const [markup, setMarkup] = useState(3);
-  const [filter, setFilter] = useState<ExpenseFilter>({ status: "all" });
+  // Default to Unsubmitted — what still needs reporting is what the user comes here to find.
+  const [filter, setFilter] = useState<ExpenseFilter>({ status: "pending" });
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "date", dir: "desc" });
   const [editing, setEditing] = useState<Expense | null>(null);
   const [viewing, setViewing] = useState<Expense | null>(null);
   const [deleting, setDeleting] = useState<Expense | null>(null);
@@ -26,7 +28,14 @@ export default function Expenses() {
     getProfile().then((p) => setMarkup(p.currencyMarkupPct));
   }, []);
 
+  const sorted = useMemo(() => sortRows(rows, sort.key, sort.dir), [rows, sort]);
+  function toggleSort(key: SortKey) {
+    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "date" ? "desc" : "asc" }));
+  }
+
   const total = rows.reduce((s, e) => s + e.amountVND, 0);
+  const bases = new Set(rows.map((e) => e.baseCurrency || "VND"));
+  const totalLabel = bases.size === 1 ? money(total, [...bases][0]) : num(total, 0);
 
   function exportCsv() {
     const head = ["Date", "Description", "Original", "Currency", "Rate", "VND", "Country", "Account code", "Status", "Invoice"];
@@ -70,7 +79,7 @@ export default function Expenses() {
         <input className="input filt-search" placeholder="Search description…" value={filter.search ?? ""} onChange={(e) => setFilter((f) => ({ ...f, search: e.target.value || undefined }))} />
         <div className="filt-sum">
           <span className="tertiary">Showing {rows.length}</span>
-          <span className="filt-total num">{vnd(total)}</span>
+          <span className="filt-total num">{totalLabel}</span>
         </div>
       </div>
 
@@ -79,15 +88,20 @@ export default function Expenses() {
       ) : (
         <div className="exp-table card">
           <div className="exp-head">
-            <span>Date</span><span>Description</span><span>Original</span><span>Rate</span><span className="ta-r">VND</span><span>Country</span><span>Status</span><span />
+            <SortTh label="Date" k="date" sort={sort} onSort={toggleSort} />
+            <span>Description</span><span>Original</span><span>Rate</span>
+            <SortTh label="Amount" k="amountVND" sort={sort} onSort={toggleSort} className="ta-r" />
+            <SortTh label="Country" k="country" sort={sort} onSort={toggleSort} />
+            <SortTh label="Status" k="status" sort={sort} onSort={toggleSort} />
+            <span />
           </div>
-          {rows.map((e) => (
+          {sorted.map((e) => (
             <div className="exp-row" key={e.id}>
               <span className="num exp-date">{fmtDate(e.date)}</span>
               <span className="exp-desc">{e.description || <em className="tertiary">(no description)</em>}</span>
-              <span className="num exp-orig tertiary">{e.originalCurrency && e.originalCurrency !== "VND" ? `${num(e.originalAmount ?? 0)} ${e.originalCurrency}` : "—"}</span>
+              <span className="num exp-orig tertiary">{e.originalCurrency && e.originalCurrency !== (e.baseCurrency || "VND") ? `${num(e.originalAmount ?? 0)} ${e.originalCurrency}` : "—"}</span>
               <span className="num exp-rate tertiary">{e.exchangeRate ? num(e.exchangeRate, 0) : "1"}</span>
-              <span className="num exp-vnd ta-r">{vnd(e.amountVND)}</span>
+              <span className="num exp-vnd ta-r">{money(e.amountVND, e.baseCurrency)}</span>
               <span className="exp-cc tertiary">{e.country}</span>
               <span><StatusChip kind={e.status === "submitted" ? "submitted" : "pending"} /></span>
               <span className="exp-act">
@@ -103,7 +117,7 @@ export default function Expenses() {
       {viewing && (
         <Modal eyebrow="Receipt" title={viewing.description || viewing.country} onClose={() => setViewing(null)}>
           <ReceiptViewer originalImageId={viewing.originalImageId} bwScanId={viewing.bwScanId} />
-          <p className="muted vw-meta num">{vnd(viewing.amountVND)} · {viewing.originalCurrency && viewing.originalCurrency !== "VND" ? `${num(viewing.originalAmount ?? 0)} ${viewing.originalCurrency}` : "VND"} · {viewing.country}</p>
+          <p className="muted vw-meta num">{money(viewing.amountVND, viewing.baseCurrency)} · {viewing.originalCurrency && viewing.originalCurrency !== (viewing.baseCurrency || "VND") ? `${num(viewing.originalAmount ?? 0)} ${viewing.originalCurrency}` : (viewing.baseCurrency || "VND")} · {viewing.country}</p>
         </Modal>
       )}
 
@@ -121,11 +135,33 @@ export default function Expenses() {
           <p className="muted">The receipt photo and scan will also be removed. This cannot be undone.</p>
           <div className="del-card card">
             <strong>{editing?.description || deleting.description || "(no description)"}</strong>
-            <div className="num muted">{vnd(deleting.amountVND)} · {fmtDate(deleting.date)} · {deleting.country}</div>
+            <div className="num muted">{money(deleting.amountVND, deleting.baseCurrency)} · {fmtDate(deleting.date)} · {deleting.country}</div>
           </div>
         </Modal>
       )}
     </div>
+  );
+}
+
+type SortKey = "date" | "amountVND" | "country" | "status";
+
+function sortRows(rows: Expense[], key: SortKey, dir: "asc" | "desc"): Expense[] {
+  const sign = dir === "asc" ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    let c = 0;
+    if (key === "amountVND") c = a.amountVND - b.amountVND;
+    else c = String(a[key]).localeCompare(String(b[key]));
+    if (c === 0) c = b.createdAt - a.createdAt; // stable tiebreak: newest first
+    return c * sign;
+  });
+}
+
+function SortTh({ label, k, sort, onSort, className }: { label: string; k: SortKey; sort: { key: SortKey; dir: "asc" | "desc" }; onSort: (k: SortKey) => void; className?: string }) {
+  const active = sort.key === k;
+  return (
+    <button className={`exp-th${active ? " active" : ""}${className ? " " + className : ""}`} onClick={() => onSort(k)}>
+      {label}{active && <span className="exp-th-ind" aria-hidden>{sort.dir === "asc" ? " ▲" : " ▼"}</span>}
+    </button>
   );
 }
 
