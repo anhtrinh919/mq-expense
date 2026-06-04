@@ -68,3 +68,4 @@ dogfood.log
 dogfood-*.log
 server.log
 .build-state.local.json
+.gstack/

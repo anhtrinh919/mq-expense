@@ -1,7 +1,7 @@
 # Product — MQ Expense
 
 ## End-State Vision
-MQ Expense is a focused, private expense tracker that lives in a browser tab and never asks anything of you except to photograph receipts and generate the report at month end. The finished product has five clean areas: Setup (one page with all your set-once config — profile, invoice recipient, bank details, country codes, currency settings — grouped into sections), Capture (photograph a receipt and let the AI do the reading), Expenses (your running log — editable, filterable), Reports (generate and download submission packages), and Backup (export/import your data). In Phase 2 the team-manager and onboarding screens (Invite / Join / Account) are added. Navigation is shallow — every function is one or two taps away. The tone is utility-first: no dashboard clutter, no social features, no notifications. It should feel like a well-designed form tool that just works.
+MQ Expense is a focused, private expense tracker that lives in a browser tab and never asks anything of you except to photograph receipts and generate the report at month end. The finished product has five clean areas: Setup (one page with all your set-once config — profile, invoice recipient, bank details, country codes, currency settings — grouped into sections), Capture (photograph a receipt and let the AI do the reading), Expenses (your running log — editable, filterable), Reports (generate and download submission packages), and Backup (export/import your data). In Phase 3 the team-manager and onboarding screens (Invite / Join / Account) are added. Navigation is shallow — every function is one or two taps away. The tone is utility-first: no dashboard clutter, no social features, no notifications. It should feel like a well-designed form tool that just works.
 
 ## Screen Inventory
 
@@ -13,9 +13,9 @@ MQ Expense is a focused, private expense tracker that lives in a browser tab and
 | Reports — Create | Pick period, review included expenses, generate PDF + Excel | Ph1 |
 | Reports — History | List of all submitted and archived reports; mark paid | Ph1 |
 | Backup | Export all data as a file; import from a file | Ph1 |
-| Invite (manager view) | Generate invite links/codes for peers | Ph2 |
-| Join (peer onboarding) | Accept invite, set up own profile, enter own workspace | Ph2 |
-| Account | Login/logout, session management for multi-user | Ph2 |
+| Invite (manager view) | Generate invite links/codes for peers | Ph3 |
+| Join (peer onboarding) | Accept invite, set up own profile, enter own workspace | Ph3 |
+| Account | Login/logout, session management for multi-user | Ph3 |
 
 ## Navigation Structure
 
@@ -32,9 +32,9 @@ App
     └── Import
 ```
 
-The Phase 1 navigation shell is built **forward-compatibly** so accounts can slot in later, but Phase 1 ships only the nodes above. The Phase 2 nodes below are designed and built whole in Phase 2 — they are not drawn, stubbed, or greyed out in Phase 1.
+The Phase 1 navigation shell is built **forward-compatibly** so accounts can slot in later, but Phase 1 ships only the nodes above. The Phase 3 nodes below are designed and built whole in Phase 3 — they are not drawn, stubbed, or greyed out in Phase 1.
 
-Phase 2 additions:
+Phase 3 additions:
 ```
 ├── Invite           [manager only]
 ├── Join             [peer onboarding]
@@ -52,7 +52,7 @@ Phase 2 additions:
 - **Archive:** When Macquarie pays, the user marks that report "Paid" and it moves to archive (Reports → History).
 - **Backup/restore:** Export all data (profile + expense log + report history) as a single JSON file; import it back on any device to fully restore.
 - **Per-user profile:** Every configurable field from today's pipeline-config.json lives in the user's local Setup: invoice prefix, vendor ID, submitter info, invoice-to info, bank details, country codes, currency markup.
-- *(Phase 2)* **Invite-only access:** Manager generates an invite link; peer opens it on any device; gets their own private workspace with no cross-visibility.
+- *(Phase 3)* **Invite-only access:** Manager generates an invite link; peer opens it on any device; gets their own private workspace with no cross-visibility.
 
 ## Named Flows
 
@@ -64,11 +64,11 @@ Phase 2 additions:
 
 - **Archive & Backup (Ph1):** Go to Reports → History (Ph1) → Find the paid report (Ph1) → Mark it Paid / Archive (Ph1) → Go to Backup → Export (Ph1) → Download backup JSON file (Ph1) → On new device: open app, go to Backup → Import, upload file (Ph1) → All data restored (Ph1)
 
-- **Join (Ph2):** Receive invite link from manager (Ph2) → Open link on any device (Ph2) → Create account / set password (Ph2) → Fill in own profile details (Ph2) → Own private workspace ready (Ph2) → Capture expenses exactly like the single-user flow (Ph1 flow, Ph2 context)
+- **Join (Ph3):** Receive invite link from manager (Ph3) → Open link on any device (Ph3) → Create account / set password (Ph3) → Fill in own profile details (Ph3) → Own private workspace ready (Ph3) → Capture expenses exactly like the single-user flow (Ph1 flow, Ph3 context)
 
 ## Phase 1 Scope
 
-Phase 1 designs and ships **only** the single-user screens — the goal is to perfect the single-user flow before any multi-user complexity exists. Phase 1 draws no Phase 2 screen and stubs nothing. The only forward-looking requirement is that the navigation shell be built so the Phase 2 account/invite/join nodes can slot in later without a redesign — but those nodes are absent from Phase 1.
+Phase 1 designs and ships **only** the single-user screens — the goal is to perfect the single-user flow before any multi-user complexity exists. Phase 1 draws no Phase 3 screen and stubs nothing. The only forward-looking requirement is that the navigation shell be built so the Phase 3 account/invite/join nodes can slot in later without a redesign — but those nodes are absent from Phase 1.
 
 **Phase 1 — designed and built (full implementation):**
 - **Setup** (single page; Profile · Invoice To · Bank Details · Country Codes · Currency Settings sections)
@@ -78,7 +78,7 @@ Phase 1 designs and ships **only** the single-user screens — the goal is to pe
 - **Reports — History**
 - **Backup**
 
-**Phase 2 — not touched in Phase 1 (designed and built whole in Phase 2):**
+**Phase 3 — not touched in Phase 1 (designed and built whole in Phase 3):**
 - **Invite** (manager view)
 - **Join** (peer onboarding)
 - **Account** (login/logout, sessions)

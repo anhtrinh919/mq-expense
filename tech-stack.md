@@ -26,7 +26,7 @@
 
 - **No server-side database:** Rejected because the core privacy promise is that the server holds no user data. A database on the server — even encrypted — would violate this promise and create a liability.
 - **No cloud storage (S3, GCS, etc.):** Same reason. Files live on the user's device. The server is a processor, not a store.
-- **No authentication in Phase 1:** Phase 1 is single-user. The app is accessed directly on the user's device. Accounts and invite-only access are Phase 2.
+- **No authentication in Phase 1:** Phase 1 is single-user. The app is accessed directly on the user's device. Accounts and invite-only access are Phase 3.
 - **No email-sending from the app:** Out of scope by design. The user downloads the PDF and emails it themselves.
 - **No global country code list:** Deferred to Future. Users manage their own country → account code mappings.
 - **No Macquarie Finance integration:** Out of scope. Manual download-and-email is the intended workflow.

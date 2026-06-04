@@ -1,0 +1,166 @@
+.reports {
+  max-width: var(--maxw);
+}
+.rep-tabs {
+  display: inline-flex;
+  background: var(--bg-muted);
+  border-radius: var(--radius-md);
+  padding: 3px;
+}
+.rep-tab {
+  padding: 6px var(--space-4);
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.rep-tab.active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.create-cfg {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+.create-cfg .field { width: 160px; }
+.cfg-arrow { padding-bottom: 10px; color: var(--text-tertiary); }
+.cfg-inv { width: 200px; }
+.cfg-sum {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.cfg-total { font-size: 16px; font-weight: 600; }
+
+.create-list {
+  padding: 0;
+  overflow: hidden;
+  margin-bottom: var(--space-4);
+}
+.cl-head {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-5);
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-soft);
+}
+.cl-empty { padding: var(--space-6); font-size: 13px; }
+.cl-row {
+  display: grid;
+  grid-template-columns: 24px 64px 1fr 100px 110px 120px;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--border-soft);
+  cursor: pointer;
+}
+.cl-row:hover { background: var(--bg-subtle); }
+.cl-date { font-size: 12px; color: var(--text-secondary); }
+.cl-desc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-vnd { text-align: right; font-weight: 600; }
+.create-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.gen-card {
+  max-width: 560px;
+  margin: var(--space-6) auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+.gen-card h2 { font-size: 22px; }
+.gen-bar {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-muted);
+  overflow: hidden;
+}
+.gen-bar span {
+  display: block;
+  height: 100%;
+  width: 40%;
+  background: var(--accent);
+  border-radius: 3px;
+  animation: indet 1.1s ease-in-out infinite;
+}
+@keyframes indet {
+  0% { margin-left: -40%; }
+  100% { margin-left: 100%; }
+}
+.gen-steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.gen-foot {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.success-check {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--status-paid-bg);
+  color: var(--status-paid);
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hist-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.hist-stat { padding: var(--space-4); }
+.hist-stat-v { font-size: 24px; font-weight: 600; margin: 4px 0; }
+.hist-table { padding: 0; overflow: hidden; }
+.hist-head, .hist-row {
+  display: grid;
+  grid-template-columns: 1fr 130px 130px 120px 100px 140px;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+}
+.hist-head {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-soft);
+}
+.hist-row { border-top: 1px solid var(--border-soft); }
+.hist-row:hover { background: var(--bg-subtle); }
+.hist-act { display: flex; gap: 2px; justify-content: flex-end; }
+.hist-act .ico { width: auto; min-width: 28px; padding: 0 6px; font-size: 11px; font-weight: 600; }
+
+@media (max-width: 860px) {
+  .hist-stats { grid-template-columns: 1fr; }
+  .hist-head { display: none; }
+  .hist-row { grid-template-columns: 1fr auto; gap: 4px var(--space-3); }
+  .hist-row .num.ta-r, .hist-row .tertiary { grid-column: 1; }
+  .create-cfg .field, .cfg-inv { width: 100%; }
+  .cl-row { grid-template-columns: 24px 1fr auto; }
+  .cl-cc, .cl-orig { display: none; }
+}
