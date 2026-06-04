@@ -1,0 +1,9 @@
+{
+  "phase": 1,
+  "feature": "single-user-flow",
+  "step": "constitution-complete",
+  "reviewIteration": 0,
+  "requirementsHash": "",
+  "currentSubStep": null,
+  "dogfoodPid": null
+}
