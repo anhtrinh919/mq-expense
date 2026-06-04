@@ -12,6 +12,52 @@ import sys
 from pathlib import Path
 
 
+def _deskew(pil_img):
+    """Flatten a receipt photographed at an angle via a four-point perspective transform.
+    Returns a corrected PIL image, or None to fall back to the original (no clean
+    document rectangle found, or OpenCV/numpy unavailable). Never raises."""
+    try:
+        import cv2
+        import numpy as np
+        from PIL import Image
+    except Exception:
+        return None
+    try:
+        rgb = pil_img.convert("RGB")
+        full = np.array(rgb)[:, :, ::-1]  # RGB -> BGR
+        h, w = full.shape[:2]
+        ratio = 1000.0 / max(h, w)
+        small = cv2.resize(full, (int(w * ratio), int(h * ratio))) if ratio < 1 else full.copy()
+        gray = cv2.GaussianBlur(cv2.cvtColor(small, cv2.COLOR_BGR2GRAY), (5, 5), 0)
+        edges = cv2.dilate(cv2.Canny(gray, 50, 150), np.ones((3, 3), np.uint8), iterations=1)
+        cnts, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        area_small = small.shape[0] * small.shape[1]
+        quad = None
+        for c in sorted(cnts, key=cv2.contourArea, reverse=True)[:5]:
+            approx = cv2.approxPolyDP(c, 0.02 * cv2.arcLength(c, True), True)
+            if len(approx) == 4 and cv2.isContourConvex(approx) and cv2.contourArea(approx) > 0.25 * area_small:
+                quad = approx.reshape(4, 2).astype("float32") / ratio
+                break
+        if quad is None:
+            return None
+        # order corners: tl, tr, br, bl
+        rect = np.zeros((4, 2), dtype="float32")
+        s = quad.sum(axis=1)
+        rect[0], rect[2] = quad[np.argmin(s)], quad[np.argmax(s)]
+        d = np.diff(quad, axis=1)
+        rect[1], rect[3] = quad[np.argmin(d)], quad[np.argmax(d)]
+        (tl, tr, br, bl) = rect
+        maxW = int(max(np.linalg.norm(br - bl), np.linalg.norm(tr - tl)))
+        maxH = int(max(np.linalg.norm(tr - br), np.linalg.norm(tl - bl)))
+        if maxW < 80 or maxH < 80:
+            return None
+        dst = np.array([[0, 0], [maxW - 1, 0], [maxW - 1, maxH - 1], [0, maxH - 1]], dtype="float32")
+        warped = cv2.warpPerspective(full, cv2.getPerspectiveTransform(rect, dst), (maxW, maxH))
+        return Image.fromarray(warped[:, :, ::-1])  # BGR -> RGB
+    except Exception:
+        return None
+
+
 def process(input_path: str, output_path: str) -> str:
     from PIL import Image, ImageOps, ImageEnhance, ImageChops, ImageFilter
 
@@ -22,6 +68,11 @@ def process(input_path: str, output_path: str) -> str:
         img = ImageOps.exif_transpose(img)
     except Exception:
         pass
+
+    # Straighten an angled receipt first; on no-confident-rectangle, keep the original.
+    deskewed = _deskew(img)
+    if deskewed is not None:
+        img = deskewed
 
     grey = img.convert("L")
 
