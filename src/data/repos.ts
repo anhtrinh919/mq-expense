@@ -19,7 +19,10 @@ export function emptyProfile(): Profile {
     invoiceTo: { name: "Macquarie University", address: "", email: "" },
     bank: { accountName: "", accountNumber: "", swift: "", bankName: "" },
     currencyMarkupPct: 3,
-    homeCurrency: "VND",
+    baseCurrency: "VND",
+    homeCountry: "",
+    pinHash: null,
+    onboardingComplete: false,
     updatedAt: 0,
   };
 }
@@ -30,7 +33,7 @@ export async function getProfile(): Promise<Profile> {
 }
 
 export async function saveProfile(p: Profile): Promise<void> {
-  await db.profile.put({ ...p, id: "profile", homeCurrency: "VND", updatedAt: Date.now() });
+  await db.profile.put({ ...p, id: "profile", updatedAt: Date.now() });
 }
 
 /** Fields the Macquarie invoice header needs. Used to gate report generation. */
@@ -112,15 +115,18 @@ export async function getExpense(id: string): Promise<Expense | undefined> {
 
 /** Creates an expense and its two images atomically. */
 export async function createExpense(
-  expense: Omit<Expense, "id" | "originalImageId" | "bwScanId" | "createdAt" | "status" | "invoiceNumber" | "reportId">,
+  expense: Omit<Expense, "id" | "originalImageId" | "bwScanId" | "createdAt" | "status" | "invoiceNumber" | "reportId" | "baseCurrency"> & { baseCurrency?: string },
   originalImage: { mimeType: string; blob: Blob },
   bwScan: { mimeType: string; blob: Blob },
 ): Promise<Expense> {
   const id = uid("exp_");
   const originalImageId = uid("img_");
   const bwScanId = uid("img_");
+  // Record the base currency this row was converted to (from the profile unless the caller overrides).
+  const baseCurrency = expense.baseCurrency ?? (await getProfile()).baseCurrency;
   const full: Expense = {
     ...expense,
+    baseCurrency,
     id,
     originalImageId,
     bwScanId,

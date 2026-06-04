@@ -22,6 +22,18 @@ export interface RestoreCounts {
   images: number;
 }
 
+/** Brings a profile from any prior format up to the Phase 2 shape (used on import). */
+function migrateProfile(p: Profile): Profile {
+  const legacy = p as Profile & { homeCurrency?: string };
+  return {
+    ...p,
+    baseCurrency: p.baseCurrency ?? legacy.homeCurrency ?? "VND",
+    homeCountry: p.homeCountry ?? "Vietnam",
+    pinHash: p.pinHash ?? null,
+    onboardingComplete: p.onboardingComplete ?? true,
+  };
+}
+
 export async function exportAll(): Promise<{ blob: Blob; filename: string }> {
   const [profile, countryCodes, expenses, images, reports] = await Promise.all([
     db.profile.get("profile"),
@@ -73,11 +85,15 @@ export async function importAll(file: File): Promise<RestoreCounts> {
     expenseXlsx: r.expenseXlsxBase64 ? base64ToBlob(r.expenseXlsxBase64, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") : null,
   }));
 
+  // Migrate older (Phase 1) backups to the Phase 2 shape on the way in.
+  const migratedProfile = parsed.profile ? migrateProfile(parsed.profile) : null;
+  const migratedExpenses = (parsed.expenses ?? []).map((e) => ({ ...e, baseCurrency: (e as Partial<Expense>).baseCurrency ?? "VND" }));
+
   await db.transaction("rw", [db.profile, db.countryCodes, db.expenses, db.images, db.reports], async () => {
     await Promise.all([db.profile.clear(), db.countryCodes.clear(), db.expenses.clear(), db.images.clear(), db.reports.clear()]);
-    if (parsed.profile) await db.profile.put(parsed.profile);
+    if (migratedProfile) await db.profile.put(migratedProfile);
     if (parsed.countryCodes?.length) await db.countryCodes.bulkPut(parsed.countryCodes);
-    if (parsed.expenses?.length) await db.expenses.bulkPut(parsed.expenses);
+    if (migratedExpenses.length) await db.expenses.bulkPut(migratedExpenses);
     if (images.length) await db.images.bulkPut(images);
     if (reports.length) await db.reports.bulkPut(reports);
   });

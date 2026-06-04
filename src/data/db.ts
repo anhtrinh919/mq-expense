@@ -18,6 +18,33 @@ export class MqExpenseDB extends Dexie {
       images: "id, expenseId",
       reports: "id, generatedAt, status",
     });
+    // Phase 2: per-user base currency + onboarding/PIN. Indexes unchanged; backfill records.
+    this.version(2)
+      .stores({
+        profile: "id",
+        countryCodes: "id, sortOrder",
+        expenses: "id, date, country, status, reportId",
+        images: "id, expenseId",
+        reports: "id, generatedAt, status",
+      })
+      .upgrade(async (tx) => {
+        await tx
+          .table("profile")
+          .toCollection()
+          .modify((p: Record<string, unknown>) => {
+            if (p.baseCurrency === undefined) p.baseCurrency = (p.homeCurrency as string) ?? "VND";
+            if (p.homeCountry === undefined) p.homeCountry = "Vietnam";
+            if (p.pinHash === undefined) p.pinHash = null;
+            if (p.onboardingComplete === undefined) p.onboardingComplete = true;
+            delete p.homeCurrency;
+          });
+        await tx
+          .table("expenses")
+          .toCollection()
+          .modify((e: Record<string, unknown>) => {
+            if (e.baseCurrency === undefined) e.baseCurrency = "VND";
+          });
+      });
   }
 }
 
