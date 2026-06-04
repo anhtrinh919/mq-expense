@@ -28,7 +28,7 @@ The server is stateless: it serves the web app and performs only momentary in-me
 Backup is user-controlled: the user downloads their own data file and re-imports it on any device. There is no server-side copy, no cloud backup, no hidden sync.
 
 ## Design Tool
-*(To be chosen at the frontend stage of each phase.)*
+external-pencil
 
 ## Master User Journey
 
