@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import AppShell from "./components/AppShell";
 import Home from "./screens/Home";
-import Setup from "./screens/Setup";
+import Settings from "./screens/Settings";
 import Capture from "./screens/Capture";
 import Expenses from "./screens/Expenses";
 import Reports from "./screens/Reports";
@@ -55,7 +55,8 @@ export default function App() {
     <AppShell>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/setup" element={<Setup />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/setup" element={<Navigate to="/settings" replace />} />
         <Route path="/capture" element={<Capture />} />
         <Route path="/expenses" element={<Expenses />} />
         <Route path="/reports" element={<Reports />} />

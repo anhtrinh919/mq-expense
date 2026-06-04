@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import "./AppShell.css";
 
 const NAV = [
-  { to: "/setup", label: "Setup", key: "1" },
+  { to: "/settings", label: "Settings", key: "1" },
   { to: "/capture", label: "Capture", key: "2" },
   { to: "/expenses", label: "Expenses", key: "3" },
   { to: "/reports", label: "Reports", key: "4" },
@@ -64,7 +64,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* mobile bottom nav + center capture FAB */}
       <nav className="bottom-nav">
-        <NavLink to="/setup" className={({ isActive }) => `bn${isActive ? " active" : ""}`}>Setup</NavLink>
+        <NavLink to="/settings" className={({ isActive }) => `bn${isActive ? " active" : ""}`}>Settings</NavLink>
         <NavLink to="/expenses" className={({ isActive }) => `bn${isActive ? " active" : ""}`}>Expenses</NavLink>
         <NavLink to="/capture" className="fab" aria-label="Add receipt">+</NavLink>
         <NavLink to="/reports" className={({ isActive }) => `bn${isActive ? " active" : ""}`}>Reports</NavLink>

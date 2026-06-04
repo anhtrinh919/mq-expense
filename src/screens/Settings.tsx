@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   getProfile,
   saveProfile,
@@ -10,9 +10,12 @@ import {
 } from "../data/repos";
 import type { Profile, CountryCode } from "../data/types";
 import { PageHeader, Banner } from "../components/ui";
-import "./Setup.css";
+import { COUNTRY_OPTIONS, CURRENCIES, currencyForCountry, currencyLabel } from "../lib/countries";
+import { hashPin, isValidPin } from "../lib/pin";
+import { importAll } from "../lib/backup";
+import "./Settings.css";
 
-export default function Setup() {
+export default function Settings() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [codes, setCodes] = useState<CountryCode[]>([]);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -25,7 +28,6 @@ export default function Setup() {
 
   if (!profile) return null;
   const gaps = profileGaps(profile);
-  const firstRun = profile.updatedAt === 0;
 
   function patch(p: Partial<Profile>) {
     setProfile((cur) => (cur ? { ...cur, ...p } : cur));
@@ -42,24 +44,21 @@ export default function Setup() {
     setProfile({ ...profile, updatedAt: Date.now() });
   }
 
-  function addCode() {
-    setCodes((cur) => [...cur, newCountryCode(cur.length)]);
+  function chooseCountry(c: string) {
+    patch({ homeCountry: c, baseCurrency: currencyForCountry(c) });
   }
-  function patchCode(id: string, p: Partial<CountryCode>) {
-    setCodes((cur) => cur.map((c) => (c.id === id ? { ...c, ...p } : c)));
-  }
-  async function removeCode(id: string) {
-    await deleteCountryCode(id);
-    setCodes((cur) => cur.filter((c) => c.id !== id));
-  }
+
+  function addCode() { setCodes((cur) => [...cur, newCountryCode(cur.length)]); }
+  function patchCode(id: string, p: Partial<CountryCode>) { setCodes((cur) => cur.map((c) => (c.id === id ? { ...c, ...p } : c))); }
+  async function removeCode(id: string) { await deleteCountryCode(id); setCodes((cur) => cur.filter((c) => c.id !== id)); }
 
   const invalid = (cond: boolean) => (showErrors && cond ? "input invalid" : "input");
 
   return (
-    <div className="setup">
+    <div className="settings">
       <PageHeader
-        title="Setup"
-        subtitle="Set once · feeds every report"
+        title="Settings"
+        subtitle="Everything in one place · feeds every report"
         right={
           <div className="save-area">
             {savedAt && <span className="saved-pill"><span className="dot" /> All changes saved</span>}
@@ -68,15 +67,12 @@ export default function Setup() {
         }
       />
 
-      {firstRun && (
-        <div className="intro card">
-          <h2 className="serif">Welcome. Set this up once.</h2>
-          <p className="muted">Your profile, where invoices go, your bank details, and the countries you travel in. The country codes below are pre-filled — edit them to match your own.</p>
-        </div>
-      )}
-
-      {showErrors && gaps.length > 0 && (
-        <Banner kind="attention" title={`${gaps.length} field${gaps.length === 1 ? "" : "s"} need attention before you can generate reports`} body={`Reports require: ${gaps.join(", ")}.`} />
+      {gaps.length > 0 && (
+        <Banner
+          kind="attention"
+          title="A report will need a few more details"
+          body={`Before you can generate a report, fill in: ${gaps.join(", ")}. You can do it now or whenever you're ready.`}
+        />
       )}
 
       <div className="setup-grid">
@@ -120,14 +116,32 @@ export default function Setup() {
         </section>
 
         <section className="card setup-section">
+          <h3 className="section-title">Base currency</h3>
+          <p className="section-hint tertiary">Your reimbursement currency — every receipt converts to it.</p>
+          <Field label="Home country">
+            <select className="input" value={profile.homeCountry || "Vietnam"} onChange={(e) => chooseCountry(e.target.value)}>
+              {COUNTRY_OPTIONS.map((o) => <option key={o.country} value={o.country}>{o.country}</option>)}
+            </select>
+          </Field>
+          <Field label="Reimbursement currency">
+            <select className="input num" value={profile.baseCurrency} onChange={(e) => patch({ baseCurrency: e.target.value })}>
+              {CURRENCIES.map((c) => <option key={c} value={c}>{currencyLabel(c)}</option>)}
+            </select>
+          </Field>
+          <p className="sec-note">Changing this affects only receipts you capture from now on — already-logged expenses keep the currency they were saved with.</p>
+        </section>
+
+        <section className="card setup-section">
           <h3 className="section-title">Currency markup</h3>
-          <p className="section-hint tertiary">Applied to every conversion to VND. Default 3% covers the bank spread.</p>
+          <p className="section-hint tertiary">Applied to every conversion. Default 3% covers the bank spread.</p>
           <div className="markup-row">
             <input className="input mono markup-input" type="number" min={0} step={0.5} value={profile.currencyMarkupPct} onChange={(e) => patch({ currencyMarkupPct: Number(e.target.value) })} />
             <span className="markup-pct">%</span>
           </div>
-          <p className="markup-example tertiary">Example: 1 THB = 736.82 VND → with markup = <span className="num">{(736.82 * (1 + profile.currencyMarkupPct / 100)).toFixed(2)}</span> VND</p>
+          <p className="markup-example tertiary">Example: 1 THB = 736.82 → with markup = <span className="num">{(736.82 * (1 + profile.currencyMarkupPct / 100)).toFixed(2)}</span></p>
         </section>
+
+        <SecuritySection profile={profile} onChange={setProfile} />
 
         <section className="card setup-section setup-codes">
           <div className="codes-head">
@@ -145,6 +159,8 @@ export default function Setup() {
             ))}
           </div>
         </section>
+
+        <RestoreSection />
       </div>
 
       <div className="setup-foot">
@@ -152,6 +168,90 @@ export default function Setup() {
         <button className="btn btn-primary" onClick={save}>Save changes</button>
       </div>
     </div>
+  );
+}
+
+function SecuritySection({ profile, onChange }: { profile: Profile; onChange: (p: Profile) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [pin, setPin] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const hasPin = !!profile.pinHash;
+
+  async function setNew() {
+    if (!isValidPin(pin)) { setErr("Use 4–8 digits."); return; }
+    if (pin !== confirm) { setErr("Those two don't match."); return; }
+    const p = await getProfile();
+    const next = { ...p, pinHash: await hashPin(pin) };
+    await saveProfile(next);
+    onChange(next);
+    setEditing(false); setPin(""); setConfirm(""); setErr(null);
+  }
+  async function remove() {
+    const p = await getProfile();
+    const next = { ...p, pinHash: null };
+    await saveProfile(next);
+    onChange(next);
+  }
+
+  return (
+    <section className="card setup-section">
+      <h3 className="section-title">Security</h3>
+      <p className="section-hint tertiary">A soft PIN for peace of mind. It's not encryption — your data stays readable on this device — and it's always resettable.</p>
+      <div className="pin-state">
+        {hasPin ? <span className="pin-on">● PIN is on</span> : <span className="pin-off">○ No PIN set</span>}
+      </div>
+      {editing ? (
+        <>
+          <Field label="New 4–8 digit PIN"><input className="input num" type="password" inputMode="numeric" autoComplete="off" value={pin} onChange={(e) => { setPin(e.target.value.replace(/\D/g, "").slice(0, 8)); setErr(null); }} /></Field>
+          <Field label="Confirm PIN"><input className="input num" type="password" inputMode="numeric" autoComplete="off" value={confirm} onChange={(e) => { setConfirm(e.target.value.replace(/\D/g, "").slice(0, 8)); setErr(null); }} /></Field>
+          {err && <p className="restore-warn">{err}</p>}
+          <div className="sec-actions">
+            <button className="btn btn-primary" onClick={() => void setNew()}>Save PIN</button>
+            <button className="btn btn-ghost" onClick={() => { setEditing(false); setErr(null); }}>Cancel</button>
+          </div>
+        </>
+      ) : (
+        <div className="sec-actions">
+          <button className="btn" onClick={() => setEditing(true)}>{hasPin ? "Change PIN" : "Set a PIN"}</button>
+          {hasPin && <button className="btn btn-ghost" onClick={() => void remove()}>Remove PIN</button>}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function RestoreSection() {
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function pick(file: File | undefined) {
+    if (!file) return;
+    setBusy(true); setErr(null); setMsg(null);
+    try {
+      const counts = await importAll(file);
+      setMsg(`Restored ${counts.expenses} expenses, ${counts.reports} reports, ${counts.images} images. Reloading…`);
+      setTimeout(() => window.location.reload(), 900);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "That file isn't a valid backup.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="card setup-section">
+      <h3 className="section-title">Restore from a backup</h3>
+      <p className="section-hint tertiary">Bring data back from a <span className="mono">.mqx</span> file (e.g. a new device).</p>
+      <input ref={input} type="file" accept=".mqx,application/json" hidden onChange={(e) => void pick(e.target.files?.[0])} />
+      <div className="sec-actions">
+        <button className="btn" disabled={busy} onClick={() => input.current?.click()}>Choose backup file</button>
+      </div>
+      <p className="restore-warn">This replaces all data currently on this device.</p>
+      {msg && <p className="sec-note">{msg}</p>}
+      {err && <p className="restore-warn">{err}</p>}
+    </section>
   );
 }
 
