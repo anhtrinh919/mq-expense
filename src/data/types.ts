@@ -32,7 +32,10 @@ export interface Profile {
   invoiceTo: InvoiceTo;
   bank: Bank;
   currencyMarkupPct: number;
-  homeCurrency: "VND";
+  baseCurrency: string; // reimbursement currency (was fixed "VND" in Phase 1)
+  homeCountry: string; // country chosen at onboarding that seeded baseCurrency
+  pinHash: string | null; // hash of the app PIN, or null when no PIN is set (reassurance only, not encryption)
+  onboardingComplete: boolean; // false triggers the first-run wizard
   updatedAt: number;
 }
 
@@ -49,7 +52,8 @@ export interface Expense {
   id: string;
   date: string; // YYYY-MM-DD (transaction date)
   description: string;
-  amountVND: number; // whole VND, rounded
+  amountVND: number; // whole units of baseCurrency, rounded (field name kept from Phase 1 for stack compatibility)
+  baseCurrency: string; // reimbursement currency this row was converted to, recorded at capture time
   originalAmount: number | null;
   originalCurrency: string | null; // e.g. "THB"; null/"VND" if already VND
   exchangeRate: number | null; // VND per 1 unit of originalCurrency, after markup
@@ -73,6 +77,32 @@ export interface StoredImage {
   kind: ImageKind;
   mimeType: string;
   blob: Blob;
+}
+
+// ---- Transient capture draft (in-progress queue, survives reload; never backed up) ----
+
+export interface CaptureDraftItem {
+  id: string;
+  fileName: string;
+  fileType: string;
+  fileBlob: Blob;
+  status: "queued" | "reading" | "ready" | "lowconf" | "error";
+  bwScanMime?: string;
+  bwScanData?: string; // base64 of the B&W scan returned by the server
+  error?: string;
+  date: string;
+  amount: string;
+  currency: string;
+  country: string;
+  accountCode: string;
+  description: string;
+}
+
+export interface CaptureDraft {
+  id: "capture"; // singleton
+  idx: number;
+  items: CaptureDraftItem[];
+  savedAt: number;
 }
 
 export type ReportStatus = "generated" | "paid";

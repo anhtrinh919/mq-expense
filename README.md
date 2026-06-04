@@ -8,4 +8,4 @@ TBD
 
 ## Status
 
-Constitution complete (mission, product, tech-stack, roadmap). Phase 1 (single-user expense flow) not yet started.
+Phase 2 complete — onboarding, polish & quality. Phase 3 next: multi-user & sharing.

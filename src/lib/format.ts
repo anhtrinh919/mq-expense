@@ -14,6 +14,12 @@ export function num(n: number, maxFrac = 2): string {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: maxFrac }).format(n);
 }
 
+/** Whole-unit money in the user's base currency. VND keeps the ₫ symbol; others show the code. */
+export function money(n: number, currency = "VND"): string {
+  if (!currency || currency === "VND") return vnd(n);
+  return `${VND.format(Math.round(n))} ${currency}`;
+}
+
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** "2026-04-19" -> "19 Apr 2026" */

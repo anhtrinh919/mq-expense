@@ -42,6 +42,7 @@ export interface GenerateReportPayload {
   profile: unknown;
   invoiceNumber: string;
   periodLabel: string;
+  baseCurrency: string;
   expenses: Array<{
     date: string;
     description: string;

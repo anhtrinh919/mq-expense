@@ -31,12 +31,28 @@ describe("repos", () => {
     expect((await listCountryCodes()).length).toBe(5);
   });
 
-  it("saves and reloads the profile singleton", async () => {
-    const p = { ...emptyProfile(), invoicePrefix: "HBEXPENSE", vendorId: "139927" };
+  it("saves and reloads the profile singleton incl. base currency + onboarding fields", async () => {
+    const p = { ...emptyProfile(), invoicePrefix: "HBEXPENSE", vendorId: "139927", baseCurrency: "THB", homeCountry: "Thailand", onboardingComplete: true };
     await saveProfile(p);
     const back = await getProfile();
     expect(back.invoicePrefix).toBe("HBEXPENSE");
+    expect(back.baseCurrency).toBe("THB");
+    expect(back.homeCountry).toBe("Thailand");
+    expect(back.onboardingComplete).toBe(true);
     expect(back.updatedAt).toBeGreaterThan(0);
+  });
+
+  it("a fresh profile starts not-onboarded with VND default", () => {
+    const p = emptyProfile();
+    expect(p.onboardingComplete).toBe(false);
+    expect(p.baseCurrency).toBe("VND");
+    expect(p.pinHash).toBeNull();
+  });
+
+  it("records the profile's base currency on a new expense", async () => {
+    await saveProfile({ ...emptyProfile(), baseCurrency: "THB" });
+    const e = await addExpense("2026-04-19");
+    expect(e.baseCurrency).toBe("THB");
   });
 
   it("creates an expense with both images and round-trips them", async () => {

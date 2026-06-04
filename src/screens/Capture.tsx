@@ -1,22 +1,25 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getProfile, listCountryCodes, createExpense } from "../data/repos";
+import { loadCaptureDraft, saveCaptureDraft, clearCaptureDraft } from "../data/captureDraft";
 import type { Profile, CountryCode } from "../data/types";
 import { processReceipt, getFx, base64ToBlob, ApiError } from "../lib/api";
 import { toVND, effectiveRate, conversionNote, rateSource } from "../lib/currency";
-import { vnd, todayISO } from "../lib/format";
+import { money, todayISO } from "../lib/format";
 import { Banner } from "../components/ui";
 import "./Capture.css";
 
 const ACCEPT = "image/*,application/pdf,.heic,.heif";
+const READ_CONCURRENCY = 3;
+
+type ItemStatus = "queued" | "reading" | "ready" | "lowconf" | "error";
 
 interface QueueItem {
   id: string;
   file: File;
-  status: "queued" | "reading" | "ready" | "lowconf" | "error";
+  status: ItemStatus;
   bwScan?: { mimeType: string; dataBase64: string };
   error?: string;
-  // editable review fields
   date: string;
   amount: string;
   currency: string;
@@ -30,146 +33,214 @@ function makeItem(file: File): QueueItem {
   return { id: `q${seq++}`, file, status: "queued", date: "", amount: "", currency: "", country: "", accountCode: "", description: "" };
 }
 
+const STATUS_LABEL: Record<ItemStatus, string> = {
+  queued: "Queued", reading: "Reading…", ready: "Read", lowconf: "Needs attention", error: "Couldn't read",
+};
+
 export default function Capture() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [codes, setCodes] = useState<CountryCode[]>([]);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [idx, setIdx] = useState(0);
-  const [rate, setRate] = useState<{ ccy: string; value: number } | null>(null);
-  const [rateErr, setRateErr] = useState<string | null>(null);
+  const [view, setView] = useState<"edit" | "reviewall">("edit");
   const [savedFlash, setSavedFlash] = useState<string | null>(null);
   const [doneCount, setDoneCount] = useState(0);
+  const [restored, setRestored] = useState(false);
+  const [rateErrs, setRateErrs] = useState<Record<string, string>>({});
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const rateCache = useRef<Map<string, number>>(new Map());
-  // "Take photo" only makes sense on a touch device with a camera — hide it on desktop.
+  const codesRef = useRef<CountryCode[]>([]);
+  const [, forceTick] = useState(0);
   const [isTouch] = useState(() => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
 
-  useEffect(() => {
-    getProfile().then(setProfile);
-    listCountryCodes().then((c) => { setCodes(c); });
-  }, []);
-
+  const base = (profile?.baseCurrency || "VND").toUpperCase();
   const markup = profile?.currencyMarkupPct ?? 3;
   const current = queue[idx];
+
+  // ---- load profile/codes + restore an in-progress draft ----
+  useEffect(() => {
+    getProfile().then(setProfile);
+    listCountryCodes().then((c) => { setCodes(c); codesRef.current = c; });
+    loadCaptureDraft().then((d) => {
+      if (!d || !d.items.length) return;
+      const items: QueueItem[] = d.items.map((it) => ({
+        id: it.id,
+        file: new File([it.fileBlob], it.fileName, { type: it.fileType }),
+        status: it.status === "reading" ? "queued" : it.status, // a reload interrupted the read — re-read it
+        bwScan: it.bwScanData ? { mimeType: it.bwScanMime || "application/pdf", dataBase64: it.bwScanData } : undefined,
+        error: it.error,
+        date: it.date, amount: it.amount, currency: it.currency, country: it.country, accountCode: it.accountCode, description: it.description,
+      }));
+      setQueue(items);
+      setIdx(Math.min(d.idx, items.length - 1));
+      setRestored(true);
+    });
+  }, []);
+
+  useEffect(() => { codesRef.current = codes; }, [codes]);
+
+  // ---- background read pool: keep up to READ_CONCURRENCY items reading ----
+  useEffect(() => {
+    const reading = queue.filter((it) => it.status === "reading").length;
+    let slots = READ_CONCURRENCY - reading;
+    if (slots <= 0) return;
+    const toStart = queue.filter((it) => it.status === "queued").slice(0, slots);
+    if (!toStart.length) return;
+    const ids = new Set(toStart.map((it) => it.id));
+    setQueue((q) => q.map((it) => (ids.has(it.id) ? { ...it, status: "reading" } : it)));
+    for (const it of toStart) void readItem(it.id, it.file);
+    void slots;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queue]);
+
+  async function ensureRate(ccyRaw: string) {
+    const ccy = ccyRaw.toUpperCase().trim();
+    if (!ccy || ccy === base) return;
+    if (rateCache.current.has(ccy)) return;
+    try {
+      const r = await getFx(ccy, base);
+      rateCache.current.set(ccy, r.rate);
+      setRateErrs((m) => { const n = { ...m }; delete n[ccy]; return n; });
+      forceTick((t) => t + 1);
+    } catch (e) {
+      setRateErrs((m) => ({ ...m, [ccy]: e instanceof ApiError ? e.message : "Rate unavailable" }));
+    }
+  }
+
+  async function readItem(id: string, file: File) {
+    try {
+      const res = await processReceipt(file);
+      const r = res.reading;
+      const lowconf = !!res.error || r.confidence === "low" || r.amount == null || r.date == null;
+      const def = codesRef.current[0];
+      setQueue((q) => q.map((it) => it.id === id ? {
+        ...it,
+        status: lowconf ? "lowconf" : "ready",
+        bwScan: res.bwScan,
+        date: it.date || r.date || "",
+        amount: it.amount || (r.amount != null ? String(r.amount) : ""),
+        currency: it.currency || r.currency || "",
+        country: it.country || def?.country || "",
+        accountCode: it.accountCode || def?.accountCode || "",
+      } : it));
+      if (r.currency) void ensureRate(r.currency);
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : "Couldn't reach the receipt reader.";
+      setQueue((q) => q.map((it) => it.id === id ? { ...it, status: "error", error: msg } : it));
+    }
+  }
+
+  // ---- autosave the draft (debounced) ----
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (queue.length === 0) { void clearCaptureDraft(); return; }
+      void saveCaptureDraft({
+        idx,
+        items: queue.map((it) => ({
+          id: it.id, fileName: it.file.name, fileType: it.file.type, fileBlob: it.file,
+          status: it.status, bwScanMime: it.bwScan?.mimeType, bwScanData: it.bwScan?.dataBase64, error: it.error,
+          date: it.date, amount: it.amount, currency: it.currency, country: it.country, accountCode: it.accountCode, description: it.description,
+        })),
+      });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [queue, idx]);
 
   function addFiles(files: FileList | File[]) {
     const arr = Array.from(files);
     if (arr.length === 0) return;
-    setDoneCount(0); // starting a fresh batch clears the previous "logged" confirmation
+    setDoneCount(0);
+    setRestored(false);
     setQueue((q) => [...q, ...arr.map(makeItem)]);
   }
 
-  // Process the current item when it becomes active and is still queued.
-  const processCurrent = useCallback(async () => {
-    const item = queue[idx];
-    if (!item || item.status !== "queued") return;
-    setQueue((q) => q.map((it, i) => (i === idx ? { ...it, status: "reading" } : it)));
-    try {
-      const res = await processReceipt(item.file);
-      const def = codes[0];
-      const reading = res.reading;
-      const lowconf = !!res.error || reading.confidence === "low" || reading.amount == null || reading.date == null;
-      setQueue((q) =>
-        q.map((it, i) =>
-          i === idx
-            ? {
-                ...it,
-                status: lowconf ? "lowconf" : "ready",
-                bwScan: res.bwScan,
-                date: reading.date ?? "",
-                amount: reading.amount != null ? String(reading.amount) : "",
-                currency: reading.currency ?? "",
-                country: it.country || def?.country || "",
-                accountCode: it.accountCode || def?.accountCode || "",
-              }
-            : it,
-        ),
-      );
-    } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "Couldn't reach the receipt reader.";
-      setQueue((q) => q.map((it, i) => (i === idx ? { ...it, status: "error", error: msg } : it)));
-    }
-  }, [queue, idx, codes]);
-
-  useEffect(() => { void processCurrent(); }, [idx, queue.length, processCurrent]);
-
-  // Fetch FX rate whenever the current item's currency changes (non-VND).
-  useEffect(() => {
-    const ccy = (current?.currency || "").toUpperCase().trim();
-    setRateErr(null);
-    if (!ccy || ccy === "VND") { setRate(null); return; }
-    if (rateCache.current.has(ccy)) { setRate({ ccy, value: rateCache.current.get(ccy)! }); return; }
-    let cancelled = false;
-    getFx(ccy)
-      .then((r) => { if (!cancelled) { rateCache.current.set(ccy, r.rate); setRate({ ccy, value: r.rate }); } })
-      .catch((e) => { if (!cancelled) { setRate(null); setRateErr(e instanceof ApiError ? e.message : "Rate unavailable"); } });
-    return () => { cancelled = true; };
-  }, [current?.currency]);
-
-  function computeVND(): number | null {
-    if (!current) return null;
-    const amt = parseFloat(current.amount);
+  function vndFor(it: QueueItem): number | null {
+    const amt = parseFloat(it.amount);
     if (isNaN(amt)) return null;
-    const ccy = current.currency.toUpperCase().trim();
-    if (!ccy || ccy === "VND") return Math.round(amt);
-    if (rate && rate.ccy === ccy) return toVND(amt, rate.value, markup);
-    return null;
+    const ccy = it.currency.toUpperCase().trim();
+    if (!ccy || ccy === base) return Math.round(amt);
+    const r = rateCache.current.get(ccy);
+    if (r == null) { void ensureRate(ccy); return null; }
+    return toVND(amt, r, markup);
   }
 
-  function patchCurrent(p: Partial<QueueItem>) {
-    setQueue((q) => q.map((it, i) => (i === idx ? { ...it, ...p } : it)));
+  function patch(id: string, p: Partial<QueueItem>) {
+    setQueue((q) => q.map((it) => (it.id === id ? { ...it, ...p } : it)));
+    if (p.currency) void ensureRate(p.currency);
+  }
+  function patchCurrent(p: Partial<QueueItem>) { if (current) patch(current.id, p); }
+  function pickCountry(id: string, country: string) {
+    const c = codesRef.current.find((x) => x.country === country);
+    patch(id, { country, accountCode: c?.accountCode ?? "" });
   }
 
-  function pickCountry(country: string) {
-    const c = codes.find((x) => x.country === country);
-    patchCurrent({ country, accountCode: c?.accountCode ?? "" });
+  function savableOf(it: QueueItem): boolean {
+    return it.status !== "error" && it.status !== "reading" && it.status !== "queued" && !!it.date && vndFor(it) != null;
   }
 
-  function advance() {
-    setRate(null);
-    if (idx + 1 < queue.length) setIdx(idx + 1);
-    else { setQueue([]); setIdx(0); }
-  }
-
-  async function save() {
-    if (!current) return;
-    const amt = parseFloat(current.amount);
-    const vndAmt = computeVND();
-    if (isNaN(amt) || vndAmt == null || !current.date) return;
-    const ccy = current.currency.toUpperCase().trim();
-    const isForeign = ccy && ccy !== "VND";
-    const effRate = isForeign && rate ? effectiveRate(rate.value, markup) : null;
-    const note = isForeign && effRate ? conversionNote(amt, ccy, effRate, vndAmt, markup) : "";
-
-    const origBlob = current.file;
-    const bw = current.bwScan ? base64ToBlob(current.bwScan.dataBase64, current.bwScan.mimeType) : current.file;
-
+  async function saveOne(it: QueueItem) {
+    const amt = parseFloat(it.amount);
+    const vndAmt = vndFor(it);
+    if (vndAmt == null) return false;
+    const ccy = it.currency.toUpperCase().trim();
+    const isForeign = !!ccy && ccy !== base;
+    const effRate = isForeign ? effectiveRate(rateCache.current.get(ccy)!, markup) : null;
+    const note = isForeign && effRate ? conversionNote(amt, ccy, effRate, vndAmt, markup, base) : "";
+    const bw = it.bwScan ? base64ToBlob(it.bwScan.dataBase64, it.bwScan.mimeType) : it.file;
     await createExpense(
       {
-        date: current.date,
-        description: current.description || current.file.name.replace(/\.[^.]+$/, ""),
+        date: it.date,
+        description: it.description || it.file.name.replace(/\.[^.]+$/, ""),
         amountVND: vndAmt,
+        baseCurrency: base,
         originalAmount: isForeign ? amt : null,
-        originalCurrency: isForeign ? ccy : "VND",
+        originalCurrency: isForeign ? ccy : base,
         exchangeRate: effRate,
         rateSource: isForeign ? rateSource(markup) : "",
-        country: current.country,
-        accountCode: current.accountCode,
+        country: it.country,
+        accountCode: it.accountCode,
         notes: note,
       },
-      { mimeType: origBlob.type || "image/jpeg", blob: origBlob },
-      { mimeType: current.bwScan?.mimeType ?? origBlob.type ?? "application/pdf", blob: bw },
+      { mimeType: it.file.type || "image/jpeg", blob: it.file },
+      { mimeType: it.bwScan?.mimeType ?? it.file.type ?? "application/pdf", blob: bw },
     );
-    setSavedFlash(vnd(vndAmt));
-    setTimeout(() => setSavedFlash(null), 1400);
-    setDoneCount((n) => n + 1);
-    advance();
+    return true;
   }
 
-  // ---------- render ----------
+  function removeItem(id: string) {
+    setQueue((q) => {
+      const next = q.filter((it) => it.id !== id);
+      setIdx((i) => Math.max(0, Math.min(i, next.length - 1)));
+      return next;
+    });
+  }
 
+  async function saveCurrent() {
+    if (!current || !savableOf(current)) return;
+    const vndAmt = vndFor(current)!;
+    await saveOne(current);
+    setSavedFlash(money(vndAmt, base));
+    setTimeout(() => setSavedFlash(null), 1400);
+    setDoneCount((n) => n + 1);
+    removeItem(current.id);
+  }
+
+  async function saveAll() {
+    const savable = queue.filter(savableOf);
+    for (const it of savable) await saveOne(it);
+    await clearCaptureDraft();
+    setDoneCount(savable.length);
+    setQueue([]); setIdx(0); setView("edit"); setRestored(false);
+  }
+
+  async function discardAll() {
+    await clearCaptureDraft();
+    setQueue([]); setIdx(0); setView("edit"); setRestored(false);
+  }
+
+  // ---------- render: empty / done ----------
   if (queue.length === 0) {
     return (
       <div className="capture">
@@ -190,11 +261,7 @@ export default function Capture() {
             </div>
           </div>
         )}
-        <div
-          className="dropzone"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}
-        >
+        <div className="dropzone" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}>
           <div className="dz-graphic" aria-hidden>🧾</div>
           <h2 className="serif">{doneCount > 0 ? "Add more receipts" : "Drop receipts here"}</h2>
           <p className="muted">PDF or any image · several files at once is fine</p>
@@ -208,15 +275,71 @@ export default function Capture() {
         <div className="cap-tips">
           <Tip k="PDF / JPG / PNG / HEIC" v="All common formats" />
           <Tip k="Up to 25 MB" v="per file" />
-          <Tip k="Multiple at once" v="they queue and you review one at a time" />
+          <Tip k="Read in the background" v="add several, review them in one pass" />
         </div>
         {savedFlash && <div className="saved-flash">✓ Saved — {savedFlash}</div>}
       </div>
     );
   }
 
-  const vndAmt = computeVND();
-  const canSave = !!current && !!current.date && vndAmt != null && current.status !== "reading" && current.status !== "error";
+  const readingCount = queue.filter((it) => it.status === "reading" || it.status === "queued").length;
+  const savableCount = queue.filter(savableOf).length;
+
+  // ---------- render: review-all summary ----------
+  if (view === "reviewall") {
+    return (
+      <div className="capture reviewing">
+        <div className="rev-head">
+          <div className="rev-title">
+            <h1 className="page-title">Review all</h1>
+            <span className="rev-pos num">{queue.length} receipt{queue.length > 1 ? "s" : ""}{readingCount > 0 ? ` · ${readingCount} still reading` : ""}</span>
+          </div>
+          <div className="rev-actions">
+            <button className="btn btn-ghost" onClick={() => setView("edit")}>Back to one-by-one</button>
+            <button className="btn btn-primary" disabled={savableCount === 0} onClick={() => void saveAll()}>Save all ({savableCount}) ↵</button>
+          </div>
+        </div>
+        {restored && <Banner kind="attention" title="Restored your in-progress receipts" body="Picked up where you left off before the page reloaded." />}
+        <div className="ra-list">
+          {queue.map((it) => {
+            const v = vndFor(it);
+            return (
+              <div className={`ra-row card${it.status === "error" ? " ra-err" : ""}`} key={it.id}>
+                <div className="ra-meta">
+                  <span className={`ra-status ra-${it.status}`}>{STATUS_LABEL[it.status]}</span>
+                  <span className="ra-name tertiary">{it.file.name}</span>
+                </div>
+                {it.status === "error" ? (
+                  <div className="ra-fields"><span className="conv-err">{it.error} — remove and re-add this file.</span></div>
+                ) : (
+                  <div className="ra-fields">
+                    <input className="input" type="date" value={it.date} max={todayISO()} onChange={(e) => patch(it.id, { date: e.target.value })} />
+                    <input className="input mono" inputMode="decimal" placeholder="0.00" value={it.amount} onChange={(e) => patch(it.id, { amount: e.target.value })} />
+                    <input className="input mono ra-ccy" placeholder={base} value={it.currency} onChange={(e) => patch(it.id, { currency: e.target.value.toUpperCase() })} />
+                    <select className="select" value={it.country} onChange={(e) => pickCountry(it.id, e.target.value)}>
+                      <option value="">Country…</option>
+                      {codes.map((c) => <option key={c.id} value={c.country}>{c.country}</option>)}
+                    </select>
+                    <input className="input ra-desc" placeholder="Description" value={it.description} onChange={(e) => patch(it.id, { description: e.target.value })} />
+                    <span className="ra-conv num">{v != null ? money(v, base) : "—"}</span>
+                  </div>
+                )}
+                <button className="btn btn-ghost ra-del" onClick={() => removeItem(it.id)} aria-label="Remove">✕</button>
+              </div>
+            );
+          })}
+        </div>
+        {savedFlash && <div className="saved-flash">✓ Saved — {savedFlash}</div>}
+      </div>
+    );
+  }
+
+  // ---------- render: one-by-one inspector ----------
+  const vndAmt = current ? vndFor(current) : null;
+  const ccyUp = (current?.currency || "").toUpperCase();
+  const isForeign = !!ccyUp && ccyUp !== base;
+  const rateErr = isForeign ? rateErrs[ccyUp] : undefined;
+  const canSave = !!current && savableOf(current);
 
   return (
     <div className="capture reviewing">
@@ -225,22 +348,24 @@ export default function Capture() {
           <h1 className="page-title">Reviewing queue</h1>
           <span className="rev-pos num">{idx + 1} of {queue.length}</span>
         </div>
-        <div className="rev-prog">
+        <div className="rev-prog" aria-label="receipt statuses">
           {queue.map((it, i) => (
-            <span key={it.id} className={`prog-seg${i < idx ? " done" : i === idx ? " active" : ""}`} />
+            <span key={it.id} className={`prog-seg seg-${it.status}${i === idx ? " active" : ""}`} title={`${it.file.name}: ${STATUS_LABEL[it.status]}`} onClick={() => setIdx(i)} />
           ))}
         </div>
         <div className="rev-actions">
-          <button className="btn btn-ghost" onClick={advance}>{current?.status === "error" ? "Skip to next" : "Skip"}</button>
-          <button className="btn btn-primary" disabled={!canSave} onClick={save}>Save &amp; next ↵</button>
+          <button className="btn btn-ghost" onClick={() => setView("reviewall")}>Review all ({queue.length})</button>
+          <button className="btn btn-ghost" onClick={() => current && removeItem(current.id)}>{current?.status === "error" ? "Remove" : "Skip"}</button>
+          <button className="btn btn-primary" disabled={!canSave} onClick={() => void saveCurrent()}>Save &amp; next ↵</button>
         </div>
       </div>
 
+      {restored && <Banner kind="attention" title="Restored your in-progress receipts" body="Picked up where you left off before the page reloaded." />}
       {current?.status === "lowconf" && (
         <Banner kind="attention" title="Couldn't read every field" body="Check the receipt on the left and fill in anything blank." />
       )}
       {current?.status === "error" && (
-        <Banner kind="error" title="This file couldn't be read" body={current.error} action={<button className="btn" onClick={advance}>Remove from queue</button>} />
+        <Banner kind="error" title="This file couldn't be read" body={current.error} action={<button className="btn" onClick={() => current && removeItem(current.id)}>Remove from queue</button>} />
       )}
 
       <div className="rev-body">
@@ -256,7 +381,7 @@ export default function Capture() {
           ) : (
             <div className="rv-reading">
               <FilePreview file={current!.file} />
-              {current?.status === "reading" && <div className="reading-overlay"><span className="spinner" /> Reading receipt…</div>}
+              {(current?.status === "reading" || current?.status === "queued") && <div className="reading-overlay"><span className="spinner" /> Reading receipt…</div>}
             </div>
           )}
           <div className="rev-file tertiary num">{current?.file.name} · {(current!.file.size / 1e6).toFixed(1)} MB</div>
@@ -276,11 +401,11 @@ export default function Capture() {
               <input className="input mono" inputMode="decimal" value={current?.amount || ""} onChange={(e) => patchCurrent({ amount: e.target.value })} placeholder="0.00" />
             </label>
             <label className="field"><span className="field-label">Currency</span>
-              <input className="input mono" value={current?.currency || ""} onChange={(e) => patchCurrent({ currency: e.target.value.toUpperCase() })} placeholder="THB" />
+              <input className="input mono" value={current?.currency || ""} onChange={(e) => patchCurrent({ currency: e.target.value.toUpperCase() })} placeholder={base} />
             </label>
           </div>
           <label className="field"><span className="field-label">Country / account</span>
-            <select className="select" value={current?.country || ""} onChange={(e) => pickCountry(e.target.value)}>
+            <select className="select" value={current?.country || ""} onChange={(e) => current && pickCountry(current.id, e.target.value)}>
               <option value="">Select…</option>
               {codes.map((c) => <option key={c.id} value={c.country}>{c.country} · {c.accountCode}</option>)}
             </select>
@@ -289,24 +414,24 @@ export default function Capture() {
             <input className="input" value={current?.description || ""} onChange={(e) => patchCurrent({ description: e.target.value })} placeholder="e.g. Taxi — airport to hotel" />
           </label>
           <div className="insp-converted">
-            <span className="field-label">Converted to VND</span>
+            <span className="field-label">Converted to {base}</span>
             {vndAmt != null ? (
-              <div className="conv-big num">{vnd(vndAmt)}</div>
+              <div className="conv-big num">{money(vndAmt, base)}</div>
             ) : rateErr ? (
-              <div className="conv-err">{rateErr} — enter the VND amount manually by setting currency to VND</div>
-            ) : current?.currency && current.currency.toUpperCase() !== "VND" ? (
+              <div className="conv-err">{rateErr} — set currency to {base} to enter the amount directly</div>
+            ) : isForeign ? (
               <div className="muted"><span className="spinner" /> fetching rate…</div>
             ) : (
               <div className="tertiary">Enter an amount</div>
             )}
-            {vndAmt != null && rate && current?.currency.toUpperCase() !== "VND" && (
-              <div className="tertiary num">{current?.amount} {rate.ccy} × {effectiveRate(rate.value, markup).toFixed(2)} (xe.com +{markup}%)</div>
+            {vndAmt != null && isForeign && rateCache.current.get(ccyUp) != null && (
+              <div className="tertiary num">{current?.amount} {ccyUp} × {effectiveRate(rateCache.current.get(ccyUp)!, markup).toFixed(2)} (xe.com +{markup}%)</div>
             )}
           </div>
         </div>
       </div>
       {savedFlash && <div className="saved-flash">✓ Saved — {savedFlash}</div>}
-      <button className="link-accent cap-back" onClick={() => navigate("/expenses")}>View all expenses →</button>
+      <button className="link-accent cap-back" onClick={() => void discardAll()}>Discard this batch</button>
     </div>
   );
 }

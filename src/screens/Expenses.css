@@ -59,6 +59,25 @@
   background: var(--bg-subtle);
   border-bottom: 1px solid var(--border-soft);
 }
+/* sortable header cells render as bare buttons matching the header type */
+.exp-th {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+  text-align: left;
+  display: inline-flex;
+  align-items: center;
+}
+.exp-th.ta-r { justify-content: flex-end; }
+.exp-th:hover { color: var(--text-secondary); }
+.exp-th.active { color: var(--accent); }
+.exp-th-ind { font-size: 9px; }
 .exp-row {
   border-top: 1px solid var(--border-soft);
 }

@@ -101,6 +101,63 @@
 }
 .prog-seg.done { background: var(--accent); }
 .prog-seg.active { background: var(--accent-hover); }
+/* per-item read status in the rail */
+.prog-seg { cursor: pointer; }
+.prog-seg.seg-queued { background: var(--border-default); }
+.prog-seg.seg-reading { background: var(--text-muted); }
+.prog-seg.seg-ready { background: var(--status-submitted); }
+.prog-seg.seg-lowconf { background: var(--status-attention); }
+.prog-seg.seg-error { background: var(--status-error); }
+.prog-seg.active { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* review-all summary */
+.ra-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.ra-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  position: relative;
+}
+.ra-err { border-color: var(--status-error); }
+.ra-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.ra-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.ra-queued, .ra-reading { background: var(--bg-muted); color: var(--text-secondary); }
+.ra-ready { background: var(--status-submitted-bg); color: var(--status-submitted); }
+.ra-lowconf { background: var(--status-unsubmitted-bg); color: var(--status-unsubmitted); }
+.ra-error { background: var(--status-error-bg); color: var(--status-error); }
+.ra-name { font-size: 12px; }
+.ra-fields {
+  display: grid;
+  grid-template-columns: 130px 1fr 70px 150px 1.4fr auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+.ra-conv { text-align: right; font-weight: 600; color: var(--accent); white-space: nowrap; }
+.ra-del {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  color: var(--text-tertiary);
+  padding: 0 var(--space-2);
+}
+@media (max-width: 860px) {
+  .ra-fields { grid-template-columns: 1fr 1fr; }
+  .ra-conv { grid-column: 1 / -1; text-align: left; }
+}
 .rev-actions {
   display: flex;
   gap: var(--space-2);

@@ -16,6 +16,7 @@ interface Body {
   };
   invoiceNumber?: string;
   periodLabel?: string;
+  baseCurrency?: string;
   expenses?: Array<Record<string, unknown>>;
   receipts?: Array<{ expenseRef: string; mimeType: string; dataBase64: string }>;
 }
@@ -53,6 +54,7 @@ generateReportRouter.post("/generate-report", async (req, res) => {
       profile: p,
       invoiceNumber: body.invoiceNumber.trim(),
       periodLabel: body.periodLabel ?? "",
+      baseCurrency: (body.baseCurrency ?? "VND").toUpperCase(),
       expenses: body.expenses,
       receiptFiles,
       outDir: dir,

@@ -24,7 +24,7 @@ from openpyxl.utils import get_column_letter
 
 
 # ── Expense detail XLSX (layout preserved from the cowork pipeline) ──────────
-def generate_expense_xlsx(rows, out_path, period_label):
+def generate_expense_xlsx(rows, out_path, period_label, base_currency="VND"):
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Expenses"
@@ -42,7 +42,7 @@ def generate_expense_xlsx(rows, out_path, period_label):
             ws.column_dimensions[get_column_letter(col)].width = w
 
     hdr(1, "#", 8); hdr(2, "Date", 11); hdr(3, "Description", 44)
-    hdr(4, "Account Code", 18); hdr(5, "Amount (VND)", 16)
+    hdr(4, "Account Code", 18); hdr(5, f"Amount ({base_currency})", 16)
     ws.row_dimensions[1].height = 24
 
     def parse_date(d):
@@ -243,7 +243,7 @@ def main():
     expenses = job["expenses"]
 
     expense_xlsx = out / "expenses.xlsx"
-    total = generate_expense_xlsx(expenses, expense_xlsx, job.get("periodLabel", ""))
+    total = generate_expense_xlsx(expenses, expense_xlsx, job.get("periodLabel", ""), job.get("baseCurrency", "VND"))
 
     invoice_xlsx = out / "invoice.xlsx"
     generate_invoice(job, total, invoice_xlsx)
