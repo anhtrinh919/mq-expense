@@ -1,0 +1,121 @@
+.expenses {
+  max-width: var(--maxw);
+}
+.filter-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+.filt {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.filt-k {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+.filt-in {
+  height: 36px;
+  width: 150px;
+}
+.filt-search {
+  height: 36px;
+  flex: 1;
+  min-width: 160px;
+}
+.filt-sum {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  margin-left: auto;
+}
+.filt-total {
+  font-weight: 600;
+  font-size: 15px;
+}
+.exp-table {
+  padding: 0;
+  overflow: hidden;
+}
+.exp-head,
+.exp-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 120px 80px 120px 90px 110px 96px;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+}
+.exp-head {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-soft);
+}
+.exp-row {
+  border-top: 1px solid var(--border-soft);
+}
+.exp-row:first-of-type {
+  border-top: none;
+}
+.exp-row:hover {
+  background: var(--bg-subtle);
+}
+.ta-r { text-align: right; }
+.exp-date { font-size: 12px; color: var(--text-secondary); }
+.exp-desc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exp-vnd { font-weight: 600; }
+.exp-act {
+  display: flex;
+  gap: 2px;
+  justify-content: flex-end;
+}
+.ico {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+.ico:hover { color: var(--text-primary); background: var(--bg-muted); }
+.vw-meta {
+  margin-top: var(--space-4);
+  font-size: 13px;
+}
+.del-card {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+}
+.edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+.edit-full {
+  grid-column: 1 / -1;
+}
+.edit-msg {
+  margin-top: var(--space-3);
+  font-size: 13px;
+}
+@media (max-width: 860px) {
+  .exp-head { display: none; }
+  .exp-row {
+    grid-template-columns: 1fr auto;
+    grid-auto-rows: auto;
+    gap: 4px var(--space-3);
+  }
+  .exp-orig, .exp-rate, .exp-cc { display: none; }
+  .exp-date { grid-column: 1; }
+  .exp-vnd { grid-column: 2; grid-row: 1; }
+  .exp-desc { grid-column: 1 / -1; }
+  .edit-grid { grid-template-columns: 1fr; }
+  .filt-in { width: 130px; }
+}

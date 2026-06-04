@@ -1,0 +1,50 @@
+.rv {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  height: 100%;
+}
+.rv-tabs {
+  display: inline-flex;
+  align-self: flex-start;
+  background: var(--bg-muted);
+  border-radius: var(--radius-md);
+  padding: 3px;
+}
+.rv-tab {
+  padding: 5px var(--space-3);
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.rv-tab.active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.rv-stage {
+  flex: 1;
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.rv-img {
+  max-width: 100%;
+  max-height: 60dvh;
+  object-fit: contain;
+}
+.rv-frame {
+  width: 100%;
+  height: 60dvh;
+  border: none;
+}
+.rv-empty {
+  padding: var(--space-8);
+  font-size: 13px;
+}

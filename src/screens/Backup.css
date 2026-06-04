@@ -1,0 +1,62 @@
+.backup {
+  max-width: var(--maxw);
+}
+.reassure {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  background: var(--accent-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.reassure-ico {
+  font-size: 22px;
+  line-height: 1;
+}
+.reassure strong {
+  display: block;
+  margin-bottom: 2px;
+}
+.reassure p {
+  font-size: 13px;
+}
+.backup-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+.backup-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.contains {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.contains li::before {
+  content: "·";
+  margin-right: var(--space-2);
+  color: var(--accent);
+}
+.import-dz {
+  padding: var(--space-8) var(--space-4);
+  gap: var(--space-2);
+}
+.importing {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+@media (max-width: 860px) {
+  .backup-cards {
+    grid-template-columns: 1fr;
+  }
+}
