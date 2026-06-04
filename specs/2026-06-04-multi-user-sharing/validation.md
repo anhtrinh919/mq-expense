@@ -11,7 +11,7 @@ Run these commands. Each must exit 0.
 - **Unit — sync merge:** `bun test --run sync` — last-write-wins by `updatedAt`; tombstones remove records; older incoming writes do not clobber newer local records.
 - **Unit — PIN:** `bun test --run pin` — `isValidPin` accepts 4–8 digits, rejects others (existing test still green).
 - **API — manager seeded:** after server init with the manager env set, `POST /api/auth/login` with the seeded manager's email+PIN returns 200 with `role:"manager"` and a `sessionToken` (the manager was created without any register call).
-- **API — register requires invite:** `curl -sf -XPOST :PORT/api/auth/register -d '{"name":"P","email":"p@x.test","pin":"1234"}'` **without** an invite token returns 403; there is no register path to a manager role.
+- **API — register requires invite:** `curl -sf -XPOST :PORT/api/auth/register -d '{"name":"P","email":"p@x.test","pin":"1234"}'` with a **missing** invite token returns 400; with an **invalid/expired/used** token returns 403; there is no register path to a manager role.
 - **API — login:** `POST /api/auth/login` with valid email+PIN returns 200 + session; wrong PIN returns 401; after the configured failed-attempt threshold returns 423.
 - **Admin — PIN reset:** `bun run server/scripts/reset-pin p@x.test 9999` exits 0; the peer then `login`s with PIN `9999` (old PIN no longer works) and a subsequent `GET /api/sync` returns their data unchanged.
 - **API — invite lifecycle:** manager `POST /api/invites` → `GET /api/invites/:token` returns `status:"pending"` → peer `register` with the token returns 201 → re-validating the token shows `redeemed` → a second register with it returns 403.

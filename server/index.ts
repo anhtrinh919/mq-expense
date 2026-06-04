@@ -6,17 +6,35 @@ import { healthRouter } from "./routes/health.ts";
 import { fxRouter } from "./routes/fx.ts";
 import { processReceiptRouter } from "./routes/processReceipt.ts";
 import { generateReportRouter } from "./routes/generateReport.ts";
+import { authRouter } from "./routes/auth.ts";
+import { invitePublicRouter, inviteManagerRouter, teamRouter } from "./routes/team.ts";
+import { syncRouter } from "./routes/sync.ts";
+import { accountRouter } from "./routes/account.ts";
+import { requireAuth } from "./lib/auth.ts";
+import { seedManager } from "./lib/auth.ts";
 
 const app = express();
 
 // generate-report carries base64 receipt scans — allow a generous JSON body.
 app.use(express.json({ limit: "200mb" }));
 
-// Stateless API. No request logging of bodies, no persistence.
+// Seed the single manager account from env on boot (idempotent).
+seedManager();
+
+// ---- Public routes (no session needed) ----
 app.use("/api", healthRouter);
+app.use("/api", authRouter); // register / login (logout self-gates)
+app.use("/api", invitePublicRouter); // GET /invites/:token — validate a link before joining
+
+// ---- Everything below requires a valid session ----
+app.use("/api", requireAuth);
 app.use("/api", fxRouter);
 app.use("/api", processReceiptRouter);
 app.use("/api", generateReportRouter);
+app.use("/api", inviteManagerRouter); // POST /invites (manager)
+app.use("/api", teamRouter); // roster + disable (manager)
+app.use("/api", syncRouter); // pull/push encrypted records
+app.use("/api", accountRouter); // clear my data
 
 // In production, serve the built SPA from dist/ on the same port (single homepc-1 process).
 const distDir = resolve(SERVER_DIR, "..", "dist");
