@@ -69,3 +69,7 @@ dogfood-*.log
 server.log
 .build-state.local.json
 .gstack/
+
+# Phase 3 local sync store (never commit user data)
+mqx-data.sqlite*
+.env.dogfood
