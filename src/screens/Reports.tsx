@@ -7,7 +7,8 @@ import type { Profile, Expense, ExpenseReport } from "../data/types";
 import { generateReport, blobToBase64, base64ToBlob, ApiError, type GenerateReportPayload } from "../lib/api";
 import { db, uid } from "../data/db";
 import { suggestInvoiceNumber } from "../lib/invoice";
-import { vnd, fmtDate, fmtDateShort, periodLabel, todayISO } from "../lib/format";
+import { makeZip } from "../lib/zip";
+import { vnd, money, fmtDate, fmtDateShort, periodLabel, todayISO } from "../lib/format";
 import { PageHeader, StatusChip, EmptyState, Modal, Banner } from "../components/ui";
 import "./Reports.css";
 
@@ -109,8 +110,12 @@ function Create({ onDone }: { onDone: () => void }) {
         generatedAt: Date.now(), paidAt: null, combinedPdf, expenseXlsx,
       };
       await saveReport(report);
-      download(combinedPdf, res.combinedPdf.filename);
-      download(expenseXlsx, res.expenseXlsx.filename);
+      // One zip (PDF + Excel) so the browser doesn't prompt to allow multiple downloads.
+      const zip = makeZip([
+        { name: res.combinedPdf.filename, data: b64bytes(res.combinedPdf.dataBase64) },
+        { name: res.expenseXlsx.filename, data: b64bytes(res.expenseXlsx.dataBase64) },
+      ]);
+      download(zip, `${invoiceNo.trim()}.zip`);
       setResult({ report });
       setState("success");
     } catch (e) {
@@ -138,8 +143,8 @@ function Create({ onDone }: { onDone: () => void }) {
       <div className="gen-card card success">
         <div className="success-check">✓</div>
         <h2>Report ready to submit</h2>
-        <p className="muted">Invoice <span className="num">{result.report.invoiceNumber}</span> · {result.report.periodLabel} · {vnd(result.report.totalVND)}</p>
-        <p className="tertiary">Both files have downloaded. Email them to your Macquarie Finance contact.</p>
+        <p className="muted">Invoice <span className="num">{result.report.invoiceNumber}</span> · {result.report.periodLabel} · {money(result.report.totalVND, profile?.baseCurrency)}</p>
+        <p className="tertiary">One zip ({result.report.invoiceNumber}.zip) has downloaded — it holds the PDF and the Excel. Email it to your Macquarie Finance contact.</p>
         <div className="gen-foot">
           <button className="btn" onClick={() => { setState("form"); setResult(null); setInvoiceNo(""); listReports().then(setReports); listExpenses({ status: "pending" }).then(setPending); }}>New report</button>
           <button className="btn btn-primary" onClick={onDone}>Go to History</button>
@@ -275,4 +280,11 @@ function download(blob: Blob, filename: string) {
   const a = document.createElement("a");
   a.href = url; a.download = filename; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function b64bytes(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
 }
