@@ -30,6 +30,7 @@ The reimbursement (base) currency becomes per-user instead of hard-coded VND: a 
 - **S8.** As a user, I can sort my expenses table by clicking a column (date, amount, country, status), and the table opens already filtered to "Unsubmitted" so I see what still needs reporting first. `[Manage]`
 - **S9.** As a user, when I generate a report I get a single downloaded zip containing the PDF and the Excel, so I no longer have to approve the browser's "download multiple files" prompt. `[Report, Step 6]`
 - **S10.** As a user, the everyday Backup page now only exports (restore has moved into first-run and Settings), so the page I use monthly is just the safe "download my data" action. `[Archive & Backup, Steps 4–5]`
+- **S11.** As a user, the live app matches the Pencil design on the things that drifted in Phase 1 — the Instrument Serif heading/display face is applied everywhere a heading should use it (not just the brand), and the mobile bottom nav + center capture FAB render as designed — so the app looks as intended across screens, with all new Phase 2 screens built true to the design file. `[Global / shell]`
 
 ## UI Requirements
 
@@ -108,6 +109,7 @@ No new endpoints. Two existing contracts gain a parameter/field; one endpoint's 
 - **Scan straightening must never make a receipt worse:** if perspective/deskew can't find a confident document quadrilateral, fall back to the Phase 1 pipeline output. Add the OpenCV dependency pinned exactly (no `^`/`~`).
 - **OS-agnostic** (Chrome/Safari/Firefox on macOS/Windows/iOS/Android); numeric PIN entry must be usable on a phone keypad; sortable headers and the zip download must work on mobile browsers.
 - **Strict TypeScript; dependencies pinned exactly** (tech-stack non-negotiables). Any new client dependency (zip) and Python dependency (OpenCV) is pinned.
+- **Design fidelity (global fixes scope, S11):** the design file `pencil/v0.1-p2.pen` is the source of truth. Reconcile the two systemic Phase 1 drifts app-wide — (a) the Instrument Serif display face must be applied to screen/section headings across all screens, not only the sidebar brand; (b) the mobile bottom nav + center capture FAB must be rebuilt to match the design's detailing (labels, proportions, the FAB). Build every new Phase 2 screen frame-by-frame from the design file. This is a targeted reconciliation of the flagged systemic issues, **not** a full screen-by-screen audit of every existing screen.
 
 ## Excluded from This Phase
 

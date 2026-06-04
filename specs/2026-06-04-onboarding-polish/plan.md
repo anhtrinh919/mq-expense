@@ -94,9 +94,18 @@ Rework the capture queue into one smooth pass.
 - **Verify:** manual: generating a report downloads exactly one `.zip` (no browser multi-file prompt) containing the combined PDF + the Excel, both intact and openable.
 - **Depends on:** Group 2.
 
-## Group 12 — Story walk + integration
+## Group 12 — Design fidelity reconciliation (global)
 
-- Walk every user story (S1–S10) end-to-end at mobile (390px) and desktop (1280px). Confirm the Phase 1 flows (capture happy path, report generation, backup round-trip including an **old** Phase 1 `.mqx`) still pass unchanged for a VND user.
+Fix the two systemic Phase 1 drifts the user flagged; new screens are already built true to the design in their own groups.
+
+- **Headings:** audit `src/styles/globals.css` and every `src/screens/*.css` / `src/components/*.css` so screen titles and section headings use `var(--font-display)` (Instrument Serif) where the design does — today only the sidebar brand and the globals `h*` rule reference it, and screen-level headings can fall through to Inter. Apply the display face consistently per the design frames.
+- **Mobile nav:** rebuild the `.bottom-nav` + `.fab` in `src/components/AppShell.tsx` / `AppShell.css` to match the design's mobile nav frame (`kvjJO`) — labels, proportions, the center capture FAB treatment.
+- **Verify:** at 390px the bottom nav + FAB match the design frame; on each screen the headings render in Instrument Serif (visually confirm against the `.pen` frames). `npm run typecheck` clean.
+- **Depends on:** Group 5 (Settings nav rename touches the same shell).
+
+## Group 13 — Story walk + integration
+
+- Walk every user story (S1–S11) end-to-end at mobile (390px) and desktop (1280px). Confirm the Phase 1 flows (capture happy path, report generation, backup round-trip including an **old** Phase 1 `.mqx`) still pass unchanged for a VND user.
 - Confirm privacy unchanged: nothing persisted server-side after capture/report.
 - **Verify:** full `npm run test` green; `npm run typecheck` clean; the validation.md manual checklist passes; all `[PRIMARY]` checks pass.
-- **Depends on:** Groups 1–11.
+- **Depends on:** Groups 1–12.

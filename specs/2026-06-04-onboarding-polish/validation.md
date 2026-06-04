@@ -49,6 +49,7 @@ Walk through these in a browser. Each is pass/fail.
 - [ ] S8 — Sort + filter: clicking Date/Amount/Country/Status sorts and re-sorts with an indicator; the table opens filtered to Unsubmitted; switching to All/Submitted works
 - [ ] S9 — One zip: generate a report → exactly one `.zip` downloads (no browser multi-file prompt) → it contains the combined PDF + the Excel, both open correctly; the PDF and Excel are unchanged from Phase 1 for a VND user
 - [ ] S10 — Backup export-only: the everyday Backup page exports without offering import
+- [ ] S11 — Design fidelity: screen/section headings render in Instrument Serif across screens (not Inter); at 390px the mobile bottom nav + center capture FAB match the design frame in labels, proportions, and FAB treatment; new Phase 2 screens visually match their `pencil/v0.1-p2.pen` frames
 
 **Regression (Phase 1 must still hold for a VND user):**
 - [ ] Capture happy path, report generation (correct invoice number, combined-PDF order, Excel layout), expense edit/delete, History mark-paid/delete, and a Phase 1 `.mqx` backup import all still pass
