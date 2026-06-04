@@ -35,7 +35,7 @@ Receipt *processing* remains transient: a photo passes through the server's RAM 
 Backup remains user-controlled in addition to sync: a user can still export their own data file and import it on any device.
 
 ## Design Tool
-external-pencil
+claude-code-impeccable
 
 ## Master User Journey
 

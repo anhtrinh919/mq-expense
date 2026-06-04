@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MQ Expense · Phase 3 — Join & Login mockups</title>
+<link rel="stylesheet" href="mockups.css" />
+</head>
+<body>
+<div class="gallery">
+  <h1 class="serif">Join &amp; Account</h1>
+  <p class="lede">Full-bleed surfaces (no app shell), reusing the Phase 2 onboarding/PIN scaffold. North star: it just works everywhere — log in once, you're in, never locked out.</p>
+
+  <!-- ============ JOIN ============ -->
+  <div class="state-label">1 · Join — valid invite (default)</div>
+  <div class="grid">
+    <div class="frame tall"><div class="cap">/join?invite=… — valid</div><div class="stage">
+      <div class="auth"><div class="auth-card">
+        <div class="auth-brand">MQ Expense</div>
+        <div class="auth-title serif">You're invited</div>
+        <div class="auth-sub">Hằng invited you to your own private workspace. Nobody else — not even Hằng — can see what's inside it.</div>
+        <div class="auth-form">
+          <div><label class="auth-flabel">Your name</label><input class="auth-input" value="Mai Tran" /></div>
+          <div><label class="auth-flabel">Email</label><input class="auth-input" value="mai@example.com" /></div>
+          <div><label class="auth-flabel">Choose a PIN (4–8 digits)</label>
+            <div class="pin-cells"><span class="pin-cell filled">•</span><span class="pin-cell filled">•</span><span class="pin-cell filled">•</span><span class="pin-cell active">|</span></div>
+          </div>
+        </div>
+        <button class="btn btn-primary auth-go">Create my workspace</button>
+        <div class="auth-reassure">Your data is yours alone, synced privately across your devices.</div>
+      </div></div>
+    </div></div>
+  </div>
+
+  <div class="state-label">2 · Join — validating invite</div>
+  <div class="grid">
+    <div class="frame"><div class="cap">checking the link</div><div class="stage">
+      <div class="auth"><div class="auth-card">
+        <div class="auth-brand">MQ Expense</div>
+        <div style="display:flex;gap:10px;align-items:center;color:var(--text-secondary);font-size:14px;padding:var(--space-6) 0;"><span class="spinner"></span> Checking your invite…</div>
+      </div></div>
+    </div></div>
+
+    <!-- 3 invalid -->
+    <div class="frame"><div class="cap">invalid / expired / used invite</div><div class="stage">
+      <div class="auth"><div class="auth-card">
+        <div class="auth-brand">MQ Expense</div>
+        <div class="auth-title serif">Link no longer valid</div>
+        <div class="auth-sub">This invite link has expired or has already been used. Ask your manager to send you a fresh one.</div>
+      </div></div>
+    </div></div>
+  </div>
+
+  <div class="state-label">4 · Join — error (email taken / weak PIN / network)</div>
+  <div class="grid">
+    <div class="frame tall"><div class="cap">inline validation</div><div class="stage">
+      <div class="auth"><div class="auth-card">
+        <div class="auth-brand">MQ Expense</div>
+        <div class="auth-title serif">You're invited</div>
+        <div class="auth-form">
+          <div><label class="auth-flabel">Your name</label><input class="auth-input" value="Mai Tran" /></div>
+          <div><label class="auth-flabel">Email</label><input class="auth-input invalid" value="mai@example.com" />
+            <div class="auth-err" style="margin-top:6px;">That email already has an account. Try logging in instead.</div></div>
+          <div><label class="auth-flabel">Choose a PIN (4–8 digits)</label>
+            <div class="pin-cells"><span class="pin-cell err">•</span><span class="pin-cell err">•</span><span class="pin-cell err"></span><span class="pin-cell err"></span></div>
+            <div class="auth-err" style="margin-top:6px;">A PIN needs at least 4 digits.</div></div>
+        </div>
+        <button class="btn btn-primary auth-go">Create my workspace</button>
+      </div></div>
+    </div></div>
+  </div>
+
+  <!-- ============ LOGIN / UNLOCK ============ -->
+  <div class="state-label">6 · Login — known device (PIN only, quick unlock)</div>
+  <div class="grid">
+    <div class="frame tall"><div class="cap">returning user on a known device</div><div class="stage">
+      <div class="auth"><div class="auth-card">
+        <div class="auth-brand">MQ Expense</div>
+        <div class="auth-title serif">Welcome back, Mai</div>
+        <div class="auth-sub">Enter your PIN to unlock.</div>
+        <div class="auth-form">
+          <div class="pin-cells"><span class="pin-cell filled">•</span><span class="pin-cell filled">•</span><span class="pin-cell active">|</span><span class="pin-cell"></span></div>
+        </div>
+        <button class="auth-link">Forgot PIN?</button>
+        <div class="auth-foot">all data encrypted &amp; synced privately</div>
+      </div></div>
+    </div></div>
+
+    <!-- 7 new device -->
+    <div class="frame tall"><div class="cap">new device / logged out (email + PIN)</div><div class="stage">
+      <div class="auth"><div class="auth-card">
+        <div class="auth-brand">MQ Expense</div>
+        <div class="auth-title serif">Log in</div>
+        <div class="auth-sub">Sign in to sync this device with your workspace.</div>
+        <div class="auth-form">
+          <div><label class="auth-flabel">Email</label><input class="auth-input" value="mai@example.com" /></div>
+          <div><label class="auth-flabel">PIN</label>
+            <div class="pin-cells"><span class="pin-cell filled">•</span><span class="pin-cell active">|</span><span class="pin-cell"></span><span class="pin-cell"></span></div></div>
+        </div>
+        <button class="btn btn-primary auth-go">Log in</button>
+        <button class="auth-link">Forgot PIN?</button>
+      </div></div>
+    </div></div>
+  </div>
+
+  <div class="state-label">8 · First login with existing local data (migrate prompt)</div>
+  <div class="grid">
+    <div class="frame tall"><div class="cap">manager's existing device</div><div class="stage">
+      <div class="auth"><div class="auth-card">
+        <div class="auth-brand">MQ Expense</div>
+        <div class="auth-title serif">Bring your data in?</div>
+        <div class="auth-note">We found <strong>34 expenses</strong> and <strong>3 reports</strong> already on this device. Add them to your account so they sync to your other devices?</div>
+        <button class="btn btn-primary auth-go">Add them to my account</button>
+        <button class="auth-link">Not now</button>
+      </div></div>
+    </div></div>
+  </div>
+
+  <div class="state-label">9–12 · Login states — wrong PIN · locked out · disabled · forgot PIN</div>
+  <div class="grid">
+    <div class="frame"><div class="cap">wrong PIN</div><div class="stage">
+      <div class="auth"><div class="auth-card">
+        <div class="auth-title serif">Welcome back, Mai</div>
+        <div class="auth-form"><div class="pin-cells"><span class="pin-cell err">•</span><span class="pin-cell err">•</span><span class="pin-cell err">•</span><span class="pin-cell err">•</span></div></div>
+        <div class="auth-err">That PIN didn't match. 4 tries left.</div>
+        <button class="auth-link">Forgot PIN?</button>
+      </div></div>
+    </div></div>
+
+    <div class="frame"><div class="cap">locked out</div><div class="stage">
+      <div class="auth"><div class="auth-card">
+        <div class="auth-title serif">Locked for a moment</div>
+        <div class="auth-form"><div class="pin-cells"><span class="pin-cell" style="opacity:.4"></span><span class="pin-cell" style="opacity:.4"></span><span class="pin-cell" style="opacity:.4"></span><span class="pin-cell" style="opacity:.4"></span></div></div>
+        <div class="auth-sub">Too many tries. Try again in 5 minutes.</div>
+      </div></div>
+    </div></div>
+
+    <div class="frame"><div class="cap">account disabled</div><div class="stage">
+      <div class="auth"><div class="auth-card">
+        <div class="auth-title serif">Access turned off</div>
+        <div class="auth-sub">Your access to MQ Expense has been turned off. Contact your manager if this is unexpected.</div>
+      </div></div>
+    </div></div>
+
+    <div class="frame"><div class="cap">forgot PIN (contact admin)</div><div class="stage">
+      <div class="auth"><div class="auth-card">
+        <div class="auth-title serif">Reset your PIN</div>
+        <div class="auth-note">There's no email reset on this app. Message your administrator and they'll reset your PIN for you — your data stays exactly as it is.</div>
+        <button class="auth-link">← Back to login</button>
+      </div></div>
+    </div></div>
+  </div>
+
+  <div class="state-label">5 &amp; 13 · Mobile (390px) — Join &amp; Unlock</div>
+  <div class="grid">
+    <div class="frame phone"><div class="cap">Join — 390px</div><div class="stage">
+      <div class="auth" style="padding:var(--space-6) var(--space-4);"><div class="auth-card" style="max-width:330px;">
+        <div class="auth-brand">MQ Expense</div>
+        <div class="auth-title serif">You're invited</div>
+        <div class="auth-sub">Your own private workspace.</div>
+        <div class="auth-form">
+          <div><label class="auth-flabel">Your name</label><input class="auth-input" value="Mai Tran" /></div>
+          <div><label class="auth-flabel">Email</label><input class="auth-input" value="mai@example.com" /></div>
+          <div><label class="auth-flabel">Choose a PIN</label><div class="pin-cells"><span class="pin-cell filled" style="height:48px;">•</span><span class="pin-cell filled" style="height:48px;">•</span><span class="pin-cell active" style="height:48px;">|</span><span class="pin-cell" style="height:48px;"></span></div></div>
+        </div>
+        <button class="btn btn-primary auth-go">Create my workspace</button>
+      </div></div>
+    </div></div>
+
+    <div class="frame phone"><div class="cap">Unlock — 390px</div><div class="stage">
+      <div class="auth" style="padding:var(--space-6) var(--space-4);"><div class="auth-card" style="max-width:330px;">
+        <div class="auth-brand">MQ Expense</div>
+        <div class="auth-title serif">Welcome back, Mai</div>
+        <div class="auth-sub">Enter your PIN to unlock.</div>
+        <div class="auth-form"><div class="pin-cells"><span class="pin-cell filled" style="height:52px;">•</span><span class="pin-cell filled" style="height:52px;">•</span><span class="pin-cell active" style="height:52px;">|</span><span class="pin-cell" style="height:52px;"></span></div></div>
+        <button class="auth-link">Forgot PIN?</button>
+      </div></div>
+    </div></div>
+  </div>
+
+</div>
+</body>
+</html>
