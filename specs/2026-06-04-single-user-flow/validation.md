@@ -53,7 +53,11 @@ Walk through these in a browser. Each is pass/fail.
 - [ ] S13 backup: Export → a single file downloads; on a fresh browser profile, Import → all settings, expenses, images, and reports restored (verify an image opens)
 - [ ] Empty states: Expenses with no data shows a prompt to Capture; Reports History with none shows a prompt to Create
 - [ ] Error states: unsupported file in Capture shows a named error (not a blank screen); report generation failure marks nothing Submitted and downloads nothing
-- [ ] Generate is disabled with a visible reason when the profile is incomplete or zero expenses are in range
+- [ ] Generate is disabled with a visible reason when the profile is incomplete or zero expenses are checked
+- [ ] Home/landing (desktop + mobile): the at-a-glance counts (unsubmitted count+sum, this-trip, pending-payment) reflect the actual local data and update after capturing/generating; "Add receipts" reaches Capture
+- [ ] Reports/Create per-expense include: unchecking an in-range expense excludes it from the total and from the generated package (only checked items are marked Submitted)
+- [ ] Reports/Create invoice number: the field is pre-filled with the correct suggested `{prefix}{YY}-{n}` and is editable; the generated invoice uses the shown value
+- [ ] Setup carries all invoice fields: submitter name, address (2 lines) + country, phone, and vendor ID are present and flow into the generated invoice header (matches the existing template)
 
 **Privacy verification:**
 - [ ] After capturing and after generating a report, inspect the server working directory / logs — no receipt image, no expense data, and no report file is written to or retained on the server

@@ -47,12 +47,12 @@ Every screen + every unique state. Behavior and key elements only — visual tre
 | Capture | Low-confidence / read failure | Review form shown with unread fields blank and visibly flagged; receipt preview prominent so user can read it manually | Type the missing date/amount, then Save |
 | Capture | Error | File rejected (unsupported format / too large) → inline message naming the problem, receipt stays in queue as failed; server/AI unavailable → message + retry, no expense saved silently | Fix file or retry |
 | Capture | Saved | Brief confirmation per receipt ("Saved — 208,500 VND"); queue advances; when queue empties, return to Capture default | Continue or finish |
-| Expenses (Manage) | Default | Table/list of expenses: date, description, amount VND, original amount+currency, exchange rate, country/account code, status, receipt thumbnail; filter controls (date range, country, status), description search; row actions: view, edit, delete | Browse, filter, search |
+| Expenses (Manage) | Default | Table/list of expenses: date, description, amount VND, original amount+currency, exchange rate, country/account code, status, receipt thumbnail; filter controls (date range, country, status), description search; an "Export CSV" quick action (dumps the visible log; separate from the report Excel); row actions: view, edit, delete | Browse, filter, search, export CSV |
 | Expenses | Empty | "No expenses yet" + prompt/link to Capture | Go to Capture |
 | Expenses | Edit | Editable form for one expense (all fields incl. country/account code, notes); re-convert if amount/currency changed | Save changes |
 | Expenses | View receipt | Viewer showing both the colour photo and the B&W scan for the expense | Inspect, close |
 | Expenses | Delete confirm | Confirmation dialog naming the expense | Confirm/cancel delete |
-| Reports — Create | Default | Start date + end date pickers; on selection, list of unsubmitted expenses in range with running total; "Generate" button (disabled if profile incomplete or zero expenses, with reason shown) | Pick range, review, Generate |
+| Reports — Create | Default | Start date + end date pickers; an editable invoice-number field (pre-filled with the suggested next number); list of unsubmitted expenses in range, each with an include checkbox (all checked by default); running total of checked items; "Generate" button (disabled if profile incomplete or zero checked, with reason shown) | Pick range, choose which expenses, edit invoice no. if needed, Generate |
 | Reports — Create | Generating (loading) | Progress indicator while the server assembles the package | Wait |
 | Reports — Create | Success | Confirmation with invoice number + total; both files auto-download; expenses marked Submitted | Download / go to History |
 | Reports — Create | Error | Assembly failure → message, nothing marked Submitted, no partial download | Retry |
@@ -62,8 +62,8 @@ Every screen + every unique state. Behavior and key elements only — visual tre
 | Backup | Default | "Export all data" button (downloads one file); "Import" file picker with a clear warning that import replaces current data | Export or import |
 | Backup | Importing | Progress + result summary (counts restored: expenses, reports, images) | Confirm completion |
 | Backup | Import error | Invalid/corrupt file → message, no data changed | Pick a valid file |
-| App shell | Default | Forward-compatible nav across Setup · Capture · Expenses · Reports · Backup (Capture is the primary action). No Phase-2 account nodes drawn. | Navigate |
-| App shell | Mobile | Same functions adapted to a small screen; primary "Take photo / Add receipt" reachable in one tap; no horizontal scroll | Navigate, capture |
+| App shell / Home | Default | Desktop: fixed left sidebar (Setup · Capture · Expenses · Reports · Backup, 1–5 shortcuts; "LOCAL · THIS DEVICE" card; minimal account slot reserved for Phase 2). Main area is a light Home/landing: greeting + a few at-a-glance counts (unsubmitted count+sum, this-trip count+sum, pending-payment invoice+sum, all computed locally) + recent expenses + Add-receipts CTA. No Phase-2 account nodes drawn. | Navigate; add receipts |
+| App shell / Home | Mobile | Bottom nav with a center capture FAB; greeting + drop/add area + recent; primary "add receipt" reachable in one tap; no horizontal scroll | Navigate, capture |
 
 ## Data Model
 
@@ -71,14 +71,20 @@ All data lives client-side in IndexedDB (via Dexie). The server persists nothing
 
 ```
 profile (single record)
-- invoicePrefix: string — e.g. "HBEXPENSE"
-- vendorId: string
-- submitter: { name, addressLine1, addressLine2, phone }
+- invoicePrefix: string — e.g. "HBEXPENSE" (used to seed the suggested invoice number)
+- vendorId: string — required by the Macquarie invoice header
+- submitter: { name, email, jobTitle, phone, addressLine1, addressLine2, country }
+    (email = submitter contact email; jobTitle = optional, not used by the invoice;
+     name/phone/addressLine1/addressLine2/country populate the invoice "From" block)
 - invoiceTo: { name (default "Macquarie University"), address, email }
 - bank: { accountName, accountNumber, swift, bankName }
 - currencyMarkupPct: number — default 3
 - homeCurrency: string — fixed "VND" in Phase 1
 - updatedAt: number
+
+(Note: the design's Setup surfaces a representative subset of these visually; backend
+ must still collect every field listed here so the generated invoice matches the
+ existing Macquarie-accepted template. See handover.md Deviation 4.)
 
 countryCode
 - id: string
@@ -129,7 +135,7 @@ report
 - expenseXlsx: Blob | null — cached generated Excel
 ```
 
-**Invoice numbering rule (preserved exactly from `generate_report.py`):** `{invoicePrefix}{YY}-{n}` where `YY` = two-digit year from the report-generation date and `n` = (highest `n` among this user's reports whose invoice year == current year) + 1. New year → counter starts at 1. Computed client-side from the local `report` records (the app has no DONE/ folder).
+**Invoice numbering rule (preserved from `generate_report.py`, made editable per the design):** the app **suggests** `{invoicePrefix}{YY}-{n}` where `YY` = two-digit year from the report-generation date and `n` = (highest `n` among this user's reports whose invoice year == current year) + 1; new year → counter starts at 1; computed client-side from the local `report` records (no DONE/ folder). On the Reports/Create screen this suggested number is shown in an **editable** field — the user may override it before generating (design frame `Gxsbs`). The value actually used is stored on the `report`.
 
 ## API Contracts
 
