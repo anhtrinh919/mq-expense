@@ -136,14 +136,16 @@ function EditModal({ expense, codes, markup, onClose, onSaved }: { expense: Expe
 
   function patch(p: Partial<Expense>) { setE((cur) => ({ ...cur, ...p })); }
 
+  const base = e.baseCurrency || "VND";
+
   async function recalc() {
-    if (!e.originalAmount || !e.originalCurrency || e.originalCurrency === "VND") return;
+    if (!e.originalAmount || !e.originalCurrency || e.originalCurrency === base) return;
     setBusy(true); setRecalcMsg(null);
     try {
-      const r = await getFx(e.originalCurrency);
+      const r = await getFx(e.originalCurrency, base);
       const eff = effectiveRate(r.rate, markup);
       const vndAmt = toVND(e.originalAmount, r.rate, markup);
-      patch({ exchangeRate: eff, amountVND: vndAmt, rateSource: rateSource(markup), notes: conversionNote(e.originalAmount, e.originalCurrency, eff, vndAmt, markup) });
+      patch({ exchangeRate: eff, amountVND: vndAmt, rateSource: rateSource(markup), notes: conversionNote(e.originalAmount, e.originalCurrency, eff, vndAmt, markup, base) });
       setRecalcMsg(`Recalculated: ${vnd(vndAmt)}`);
     } catch (err) {
       setRecalcMsg(err instanceof ApiError ? err.message : "Rate unavailable");

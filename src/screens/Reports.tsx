@@ -92,6 +92,7 @@ function Create({ onDone }: { onDone: () => void }) {
         profile,
         invoiceNumber: invoiceNo.trim(),
         periodLabel: label,
+        baseCurrency: profile.baseCurrency || "VND",
         expenses: selected.map((e) => ({
           date: e.date, description: e.description, amountVND: e.amountVND, accountCode: e.accountCode, notes: e.notes,
           originalAmount: e.originalAmount, originalCurrency: e.originalCurrency, exchangeRate: e.exchangeRate, rateSource: e.rateSource,
