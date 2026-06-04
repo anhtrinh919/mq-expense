@@ -166,7 +166,7 @@ export default function Settings() {
           <p className="markup-example tertiary">Example: 1 THB = 736.82 → with markup = <span className="num">{(736.82 * (1 + profile.currencyMarkupPct / 100)).toFixed(2)}</span></p>
         </section>
 
-        <SecuritySection profile={profile} onChange={setProfile} />
+        <SecuritySection hasPin={!!profile.pinHash} onPinChange={(hash) => setProfile((cur) => (cur ? { ...cur, pinHash: hash } : cur))} />
 
         <section className="card setup-section setup-codes">
           <div className="codes-head">
@@ -196,28 +196,27 @@ export default function Settings() {
   );
 }
 
-function SecuritySection({ profile, onChange }: { profile: Profile; onChange: (p: Profile) => void }) {
+function SecuritySection({ hasPin, onPinChange }: { hasPin: boolean; onPinChange: (hash: string | null) => void }) {
   const [editing, setEditing] = useState(false);
   const [pin, setPin] = useState("");
   const [confirm, setConfirm] = useState("");
   const [err, setErr] = useState<string | null>(null);
-  const hasPin = !!profile.pinHash;
+
+  // Persist only the PIN against the last-saved profile, so unsaved field edits in the
+  // form aren't clobbered; merge the new hash into the in-memory form via onPinChange.
+  async function persistPin(hash: string | null) {
+    const p = await getProfile();
+    await saveProfile({ ...p, pinHash: hash });
+    onPinChange(hash);
+  }
 
   async function setNew() {
     if (!isValidPin(pin)) { setErr("Use 4–8 digits."); return; }
     if (pin !== confirm) { setErr("Those two don't match."); return; }
-    const p = await getProfile();
-    const next = { ...p, pinHash: await hashPin(pin) };
-    await saveProfile(next);
-    onChange(next);
+    await persistPin(await hashPin(pin));
     setEditing(false); setPin(""); setConfirm(""); setErr(null);
   }
-  async function remove() {
-    const p = await getProfile();
-    const next = { ...p, pinHash: null };
-    await saveProfile(next);
-    onChange(next);
-  }
+  async function remove() { await persistPin(null); }
 
   return (
     <section className="card setup-section">
