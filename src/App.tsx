@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import AppShell from "./components/AppShell";
 import Home from "./screens/Home";
@@ -6,8 +7,43 @@ import Capture from "./screens/Capture";
 import Expenses from "./screens/Expenses";
 import Reports from "./screens/Reports";
 import Backup from "./screens/Backup";
+import PinLock from "./screens/PinLock";
+import { getProfile } from "./data/repos";
+import type { Profile } from "./data/types";
 
 export default function App() {
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [locked, setLocked] = useState(true);
+
+  function refresh() {
+    return getProfile().then((p) => {
+      setProfile(p);
+      return p;
+    });
+  }
+
+  useEffect(() => {
+    getProfile().then((p) => {
+      setProfile(p);
+      setLocked(!!p.pinHash);
+      setLoaded(true);
+    });
+  }, []);
+
+  if (!loaded) return null; // brief blank while the local DB is read
+
+  // Soft PIN lock on open (data is never actually locked away).
+  if (profile && profile.pinHash && locked) {
+    return (
+      <PinLock
+        pinHash={profile.pinHash}
+        name={(profile.submitter.name || "").trim().split(/\s+/)[0] || ""}
+        onUnlock={() => { setLocked(false); void refresh(); }}
+      />
+    );
+  }
+
   return (
     <AppShell>
       <Routes>
