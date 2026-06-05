@@ -1,0 +1,33 @@
+.team-page { max-width: 680px; }
+.team-title { font-size: 26px; margin-bottom: var(--space-1); }
+.team-sub { margin-bottom: var(--space-6); }
+.team-card { margin-bottom: var(--space-5); }
+.team-card h2 { font-size: 19px; margin-bottom: var(--space-1); }
+.team-card-sub { font-size: 13px; margin-bottom: var(--space-4); }
+.team-regen { margin-top: var(--space-3); display: inline-block; }
+
+.invite-link { display: flex; gap: var(--space-2); width: 100%; }
+.invite-link input {
+  flex: 1; min-width: 0; font-size: 12.5px; padding: var(--space-3);
+  border: 1px solid var(--border-default); border-radius: var(--radius-md);
+  background: var(--bg-subtle); color: var(--text-secondary);
+}
+
+.team-empty { padding: var(--space-4) 0; }
+
+.roster { border-top: 1px solid var(--border-soft); margin-top: var(--space-2); }
+.roster-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--border-soft); }
+.roster-row .who { flex: 1; min-width: 0; }
+.roster-row .rn { font-weight: 500; }
+.roster-row .re { font-size: 12.5px; color: var(--text-tertiary); }
+.roster-row .rj { font-size: 12px; color: var(--text-tertiary); white-space: nowrap; }
+.chip-disabled { color: var(--text-tertiary); background: var(--bg-muted); }
+.revoke { color: var(--status-error); font-size: 12.5px; background: none; border: none; cursor: pointer; }
+.revoke:hover { text-decoration: underline; }
+.confirm-inline { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 12.5px; }
+.btn-sm { height: 30px; padding: 0 var(--space-3); }
+
+@media (max-width: 560px) {
+  .roster-row { flex-wrap: wrap; }
+  .roster-row .rj { width: 100%; order: 5; }
+}

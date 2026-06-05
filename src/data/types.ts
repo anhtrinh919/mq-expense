@@ -11,6 +11,7 @@ export interface AccountState {
   name: string | null;
   role: "manager" | "peer" | null;
   sessionToken: string | null;
+  pinHashLocal: string | null; // local hash of the PIN for offline quick-unlock
   pullCursor: number; // server watermark for incremental pull
   pushHigh: number; // highest local updatedAt already pushed
   updatedAt: number;

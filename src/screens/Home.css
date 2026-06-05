@@ -41,6 +41,14 @@
   font-size: 28px;
   font-weight: 600;
 }
+/* Invoice numbers (e.g. TAEXPENSE26-1) must stay on one line — never break at the hyphen. */
+.stat-big-id {
+  font-size: 19px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
 .stat-sub {
   font-size: 14px;
 }

@@ -4,6 +4,7 @@
 import { db } from "../data/db";
 import type { AccountState } from "../data/types";
 import { setSessionToken, ApiError } from "./api";
+import { hashPin, verifyPin } from "./pin";
 
 const DEFAULT: AccountState = {
   id: "account",
@@ -12,6 +13,7 @@ const DEFAULT: AccountState = {
   name: null,
   role: null,
   sessionToken: null,
+  pinHashLocal: null,
   pullCursor: 0,
   pushHigh: 0,
   updatedAt: 0,
@@ -92,6 +94,7 @@ export async function register(input: {
     name: r.name,
     role: r.role,
     sessionToken: r.sessionToken,
+    pinHashLocal: await hashPin(input.pin),
     pullCursor: 0,
     pushHigh: 0,
   });
@@ -100,17 +103,25 @@ export async function register(input: {
 export async function login(input: { email: string; pin: string }): Promise<AccountState> {
   const prev = await getAccount();
   const r = await postAuth("/api/auth/login", input);
+  const pinHashLocal = await hashPin(input.pin);
   // If a different account previously used this device, clear its local workspace first.
   if (prev.accountId && prev.accountId !== r.accountId) {
     await wipeWorkspace();
     return saveAccount({
       accountId: r.accountId, email: r.email, name: r.name, role: r.role,
-      sessionToken: r.sessionToken, pullCursor: 0, pushHigh: 0,
+      sessionToken: r.sessionToken, pinHashLocal, pullCursor: 0, pushHigh: 0,
     });
   }
   return saveAccount({
-    accountId: r.accountId, email: r.email, name: r.name, role: r.role, sessionToken: r.sessionToken,
+    accountId: r.accountId, email: r.email, name: r.name, role: r.role,
+    sessionToken: r.sessionToken, pinHashLocal,
   });
+}
+
+/** Local, offline quick-unlock check against the PIN hash stored at login. */
+export async function verifyLocalPin(pin: string): Promise<boolean> {
+  const a = await getAccount();
+  return verifyPin(pin, a.pinHashLocal);
 }
 
 export async function logout(): Promise<void> {
@@ -121,6 +132,6 @@ export async function logout(): Promise<void> {
       headers: { authorization: `Bearer ${a.sessionToken}` },
     }).catch(() => undefined);
   }
-  // Keep local data on the device; just drop the session. Next login re-pulls.
-  await saveAccount({ sessionToken: null });
+  // Keep local data on the device; drop the session + quick-unlock hash. Next login re-pulls.
+  await saveAccount({ sessionToken: null, pinHashLocal: null });
 }

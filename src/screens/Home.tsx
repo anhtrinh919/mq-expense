@@ -47,6 +47,7 @@ export default function Home() {
         <StatCard k="All expenses" big={String(expenses.length)} sub={vnd(allSum)} note="Everything on this device" to="/expenses" />
         <StatCard
           k="Pending payment"
+          idValue
           big={lastAwaiting ? lastAwaiting.invoiceNumber : "—"}
           sub={lastAwaiting ? vnd(awaitingSum) : "No reports awaiting"}
           note={awaiting.length > 1 ? `${awaiting.length} reports awaiting payment` : "Mark paid in Reports → History"}
@@ -81,12 +82,12 @@ export default function Home() {
   );
 }
 
-function StatCard({ k, big, sub, note, to }: { k: string; big: string; sub: string; note: string; to: string }) {
+function StatCard({ k, big, sub, note, to, idValue }: { k: string; big: string; sub: string; note: string; to: string; idValue?: boolean }) {
   return (
     <Link to={to} className="stat-card card">
       <div className="eyebrow">{k}</div>
       <div className="stat-row">
-        <span className="num stat-big">{big}</span>
+        <span className={`num stat-big${idValue ? " stat-big-id" : ""}`}>{big}</span>
         <span className="num stat-sub muted">{sub}</span>
       </div>
       <p className="tertiary stat-note">{note}</p>

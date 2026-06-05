@@ -10,7 +10,8 @@ import {
   AccountDisabled,
   AccountLocked,
 } from "../lib/auth.ts";
-import { createAccount, findByEmail } from "../lib/accounts.ts";
+import { createAccount, findByEmail, findById, setPin } from "../lib/accounts.ts";
+import { verifyPin } from "../lib/crypto.ts";
 import { redeemInvite, InviteUnusable } from "../lib/invites.ts";
 
 const PIN_RE = /^\d{4,8}$/;
@@ -95,6 +96,24 @@ authRouter.post("/auth/login", (req, res) => {
     }
     throw e;
   }
+});
+
+/** Change your own PIN. Requires the current PIN; no email, no reset link. */
+authRouter.post("/auth/change-pin", requireAuth, (req, res) => {
+  const account = (req as AuthedRequest).account;
+  const { currentPin, newPin } = (req.body ?? {}) as Record<string, unknown>;
+  if (typeof currentPin !== "string" || typeof newPin !== "string") {
+    return res.status(400).json({ error: "current and new PIN are required" });
+  }
+  if (!PIN_RE.test(newPin)) {
+    return res.status(400).json({ error: "PIN must be 4 to 8 digits" });
+  }
+  const row = findById(account.id);
+  if (!row || !verifyPin(currentPin, row.pin_hash, row.pin_salt)) {
+    return res.status(401).json({ error: "current PIN didn't match" });
+  }
+  setPin(account.id, newPin);
+  res.json({ ok: true });
 });
 
 authRouter.post("/auth/logout", requireAuth, (req, res) => {

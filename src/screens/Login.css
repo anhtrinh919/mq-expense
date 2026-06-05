@@ -1,0 +1,30 @@
+/* Login/unlock additions on top of PinLock.css */
+.login-input {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  font-size: 15px;
+}
+.login-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.login-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: center;
+}
+.auth-note {
+  width: 100%;
+  text-align: left;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: var(--space-2) 0;
+}
