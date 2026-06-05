@@ -38,3 +38,13 @@
 - Account screens built whole this phase: Join (create account), Login/Unlock (email+PIN, quick PIN unlock, first-login data-migration prompt, disabled/locked-out/forgot states), and the manager Invite & Team roster (generate/revoke).
 - Profile/Settings restructure: Profile holds personal/invoice/bank/country config; Settings holds account + data (export backup, restore, change PIN, clear-all-my-data).
 - Privacy posture amended with user sign-off: server moves from "stores nothing" to "stores only per-account, encrypted-at-rest data" solely to sync a user's own devices.
+
+## Phase 4 — Production Deployment (2026-06-05)
+
+- **Live at https://mqexpense.ta-infra.uk** — go-live complete; roadmap finished.
+- Runs on homepc-1 (WSL2 Ubuntu) as systemd `mq-expense.service`: `NODE_ENV=production tsx server/index.ts` on port 8787, single-origin (serves built `dist/` + API), restart-on-failure, enabled at boot.
+- Public access via the existing shared Cloudflare tunnel: `mqexpense.ta-infra.uk` added as a 5th ingress hostname (alongside ollama/brain/dook/dook-preview), DNS CNAME routed to the tunnel, hot-reloaded with no disruption to the other sites.
+- Code on a private GitHub repo (`anhtrinh919/mq-expense`); `main` is the deployable branch. Update = pull + `npm ci` + build + restart (see `docs/deployment.md`).
+- Permanent server master key generated, stored in a root-only EnvironmentFile with an operator backup copy; production refuses to boot without it. DB and key live outside the repo so redeploys never touch user data.
+- Two managers seeded (operator-only, never self-registered): env-seed creates the first; `server/scripts/add-account.ts` creates additional managers/accounts. Production started from a fresh database (dogfood test data left behind).
+- Fixed an unsatisfiable Python pin discovered at deploy: numpy 2.4.2 → 2.2.6 (opencv-python-headless 4.12 caps numpy on linux/cp312).
