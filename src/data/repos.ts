@@ -62,7 +62,7 @@ const SEED_CODES: Array<Omit<CountryCode, "id">> = [
   { country: "Singapore", accountCode: "8741/4107", sortOrder: 5 },
   { country: "Thailand", accountCode: "8741/4103", sortOrder: 6 },
   { country: "Vietnam", accountCode: "8741/4105", sortOrder: 7 },
-  { country: "SEA Head Office & Others", accountCode: "8741/410", sortOrder: 8 },
+  { country: "SEA Head Office & Others", accountCode: "8741/4101", sortOrder: 8 },
 ];
 
 /** Seeds the SEA example codes on first run (only when none exist). Returns true if it seeded. */

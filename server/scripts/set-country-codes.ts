@@ -20,7 +20,7 @@ const CODES: Array<{ country: string; accountCode: string }> = [
   { country: "Singapore", accountCode: "8741/4107" },
   { country: "Thailand", accountCode: "8741/4103" },
   { country: "Vietnam", accountCode: "8741/4105" },
-  { country: "SEA Head Office & Others", accountCode: "8741/410" },
+  { country: "SEA Head Office & Others", accountCode: "8741/4101" },
 ];
 
 function main() {
