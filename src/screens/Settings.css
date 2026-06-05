@@ -119,6 +119,24 @@
   font-size: 12px;
   color: var(--status-attention);
 }
+.acct-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.acct-name-lg {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.acct-mail-lg {
+  font-size: 12px;
+  margin-top: 2px;
+}
+.danger-section {
+  border-color: var(--status-attention);
+}
 @media (max-width: 860px) {
   .setup-grid,
   .field-row {

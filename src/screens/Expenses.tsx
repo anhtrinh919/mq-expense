@@ -8,6 +8,7 @@ import { getProfile } from "../data/repos";
 import { vnd, money, num, fmtDate } from "../lib/format";
 import { PageHeader, StatusChip, EmptyState, Modal } from "../components/ui";
 import ReceiptViewer from "../components/ReceiptViewer";
+import { useSyncSignal } from "../lib/sync";
 import "./Expenses.css";
 
 export default function Expenses() {
@@ -21,8 +22,9 @@ export default function Expenses() {
   const [viewing, setViewing] = useState<Expense | null>(null);
   const [deleting, setDeleting] = useState<Expense | null>(null);
 
+  const synced = useSyncSignal();
   const reload = useCallback(() => { listExpenses(filter).then(setRows); }, [filter]);
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => { reload(); }, [reload, synced]);
   useEffect(() => {
     listCountryCodes().then(setCodes);
     getProfile().then((p) => setMarkup(p.currencyMarkupPct));

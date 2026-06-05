@@ -15,10 +15,11 @@ MQ Expense is a focused, private expense tracker that lives in a browser tab and
 | Backup | Export all data as a file (import/restore relocated to Onboarding + Settings in Ph2) | Ph1 |
 | Onboarding | Guided first run — name, home country → reimbursement currency, optional PIN, quick guide; or restore from a backup | Ph2 |
 | PIN lock | Soft lock on app open when a PIN is set; unlock or reset (reset never loses data) | Ph2 |
-| Settings | Single config home — absorbs Setup (Profile, Invoice To, Bank, Country Codes, Markup) + Base Currency + Change/Remove PIN + Restore | Ph2 |
-| Invite (manager view) | Generate invite links/codes for peers | Ph3 |
-| Join (peer onboarding) | Accept invite, set up own profile, enter own workspace | Ph3 |
-| Account | Login/logout, session management for multi-user | Ph3 |
+| Settings (Ph2) → **renamed Profile** in Ph3 | Profile, Invoice To, Bank, Country Codes, Markup, Base Currency (config home) | Ph2 |
+| **Settings** (new in Ph3, from the former Backup page) | Data + account home: Export, Restore, Change/Remove PIN, Account (logged-in-as, Log out), Clear all my data | Ph3 |
+| Invite & Team (manager view) | Generate invite links; roster of who joined (name/email/status); revoke a peer. Manager account is seeded by the operator. | Ph3 |
+| Join (peer onboarding) | Accept invite, create account (name/email/PIN), enter own private workspace | Ph3 |
+| Account — Login / Unlock | Log in (email + PIN) on a new device; quick PIN unlock on a known device; "Forgot PIN?" shows "ask your administrator" (reset is out-of-band, no email) | Ph3 |
 
 ## Navigation Structure
 
@@ -69,7 +70,9 @@ Phase 3 additions:
 
 - **Archive & Backup (Ph1):** Go to Reports → History (Ph1) → Find the paid report (Ph1) → Mark it Paid / Archive (Ph1) → Go to Backup → Export (Ph1) → Download backup JSON file (Ph1) → On new device: open app, go to Backup → Import, upload file (Ph1) → All data restored (Ph1)
 
-- **Join (Ph3):** Receive invite link from manager (Ph3) → Open link on any device (Ph3) → Create account / set password (Ph3) → Fill in own profile details (Ph3) → Own private workspace ready (Ph3) → Capture expenses exactly like the single-user flow (Ph1 flow, Ph3 context)
+- **Join (Ph3):** Receive invite link from manager (Ph3) → Open link on any device (Ph3) → Create account: name, email, and a PIN — **no separate password**; email is identity + reset delivery only (Ph3) → Own private workspace ready, with existing on-device data brought in if present (Ph3) → Capture expenses exactly like the single-user flow (Ph1 flow, Ph3 context)
+
+- **Account (Ph3):** Log in on any device with email + PIN (Ph3) → Quick-unlock with PIN thereafter (Ph3) → If PIN forgotten, the administrator resets it out-of-band — no email, no self-service (Ph3) → Log out, or Clear all own data and start fresh (Ph3) → Data syncs privately (encrypted, per-account) across the user's devices throughout (Ph3). The manager account is seeded by the operator, not self-registered.
 
 ## Phase 1 Scope
 

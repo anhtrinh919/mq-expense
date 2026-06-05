@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MQ Expense · Phase 3 — Team, Settings, Shell mockups</title>
+<link rel="stylesheet" href="mockups.css" />
+</head>
+<body>
+<div class="gallery">
+  <h1 class="serif">Team, Settings &amp; Shell</h1>
+  <p class="lede">Invite &amp; Team lives inside the renamed Settings (manager only). Today's Settings becomes Profile; today's Backup becomes Settings. Roster is a quiet list, not a card grid; destructive actions confirm inline.</p>
+
+  <!-- ===== SHELL with sidebar (manager) ===== -->
+  <div class="state-label">22 · App shell — filled account slot, sync indicator, manager-only Invite entry</div>
+  <div class="grid" style="grid-template-columns:1fr;">
+    <div class="frame" style="min-height:auto;"><div class="cap">sidebar · manager view</div><div class="stage" style="padding:0;min-height:auto;display:block;">
+      <div class="shell">
+        <aside class="side">
+          <div class="side-brand">MQ Expense</div>
+          <nav class="nav">
+            <a><span class="ic">◆</span> Home</a>
+            <a><span class="ic">＋</span> Capture</a>
+            <a class="active"><span class="ic">≣</span> Expenses</a>
+            <a><span class="ic">▤</span> Reports</a>
+            <a><span class="ic">◷</span> Profile</a>
+            <a><span class="ic">⚙</span> Settings</a>
+            <a class="mgr"><span class="ic">✦</span> Invite &amp; Team</a>
+          </nav>
+          <div class="acct-slot">
+            <div class="acct-row"><span class="avatar">H</span><span><span class="acct-name">Hằng Bui</span><br><span class="acct-mail">hang@example.com</span></span></div>
+            <div class="sync"><span class="dot synced"></span> Synced just now</div>
+          </div>
+        </aside>
+        <main class="main">
+          <div class="eyebrow">Manager</div>
+          <h1 class="page-title serif">Invite &amp; Team</h1>
+          <p class="page-sub">Generate a link to invite a teammate. Everyone's expenses stay private — you only see who has joined.</p>
+          <!-- 16 link generated -->
+          <div class="section">
+            <h2 class="serif">Invite a teammate</h2>
+            <p class="sdesc">Share this link. It works once and expires in 7 days.</p>
+            <div class="invite-link"><input value="https://mqx.app/join?invite=K7P2-Q9MX-3L8N" readonly /><button class="btn btn-primary" style="height:auto;">Copy</button></div>
+            <div class="expiry">Expires 11 Jun 2026 · single use</div>
+          </div>
+          <!-- 14 roster -->
+          <div class="section">
+            <h2 class="serif">Teammates</h2>
+            <div class="roster">
+              <div class="roster-row"><div class="who"><div class="rn">Mai Tran</div><div class="re">mai@example.com</div></div><span class="chip chip-paid">Active</span><span class="rj">joined 2 Jun</span><button class="revoke">Revoke</button></div>
+              <div class="roster-row"><div class="who"><div class="rn">Somchai P.</div><div class="re">somchai@example.com</div></div><span class="chip chip-paid">Active</span><span class="rj">joined 28 May</span><button class="revoke">Revoke</button></div>
+              <!-- 17 revoke inline confirm -->
+              <div class="roster-row"><div class="who"><div class="rn">Dara K.</div><div class="re">dara@example.com</div></div><span class="confirm-inline"><span class="tertiary">Revoke access?</span> <button class="btn btn-danger" style="height:30px;padding:0 12px;">Yes</button> <button class="auth-link">Cancel</button></span></div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 15 empty roster -->
+  <div class="state-label">15 · Invite &amp; Team — empty (no one joined yet)</div>
+  <div class="grid">
+    <div class="frame tall"><div class="cap">empty state</div><div class="stage" style="align-items:flex-start;">
+      <div class="section" style="margin:0;width:100%;">
+        <div class="empty">
+          <h3 class="serif">No teammates yet</h3>
+          <p>Generate a link and share it to get someone started. They'll set up their own private workspace.</p>
+          <button class="btn btn-primary">Invite a teammate</button>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 18 Profile -->
+  <div class="state-label">18 · Profile (renamed from Settings) — unchanged content</div>
+  <div class="grid" style="grid-template-columns:1fr;">
+    <div class="frame"><div class="cap">/profile</div><div class="stage" style="align-items:flex-start;display:block;padding:var(--space-6);">
+      <div class="eyebrow">Your details</div>
+      <h1 class="page-title serif">Profile</h1>
+      <p class="page-sub">Profile, invoice recipient, bank details, country codes, and base currency. (Same content as before — just renamed from Settings.)</p>
+      <div class="section"><h2 class="serif">Profile</h2><div class="kv"><span class="muted">Submitter name</span><span>Hằng Bui</span></div><div class="kv"><span class="muted">Invoice prefix</span><span class="mono">HBEXPENSE</span></div><div class="kv"><span class="muted">Base currency</span><span class="mono">VND</span></div></div>
+      <div class="section"><h2 class="serif">Bank details</h2><div class="kv"><span class="muted">Account name</span><span>Hang Bui</span></div><div class="kv"><span class="muted">SWIFT</span><span class="mono">BFTVVNVX</span></div></div>
+    </div></div>
+  </div>
+
+  <!-- 19 + 20 Settings -->
+  <div class="state-label">19–20 · Settings (renamed from Backup) — default + clear-data inline confirm</div>
+  <div class="grid" style="grid-template-columns:1fr;">
+    <div class="frame"><div class="cap">/settings</div><div class="stage" style="align-items:flex-start;display:block;padding:var(--space-6);">
+      <div class="eyebrow">Account &amp; data</div>
+      <h1 class="page-title serif">Settings</h1>
+      <p class="page-sub">Your account, your backups, your PIN — and the controls to wipe it all.</p>
+      <div class="section"><h2 class="serif">Account</h2>
+        <div class="kv"><span><span class="acct-name">Hằng Bui</span><br><span class="acct-mail">hang@example.com</span></span><button class="btn">Log out</button></div>
+        <div class="kv"><span class="muted">Sync</span><span class="sync" style="padding:0;"><span class="dot synced"></span> Synced just now</span></div>
+      </div>
+      <div class="section"><h2 class="serif">Backup</h2><p class="sdesc">Keep your own copy, in addition to automatic cloud sync.</p>
+        <div class="kv"><span class="muted">Export all my data (.mqx)</span><button class="btn">Export</button></div>
+        <div class="kv"><span class="muted">Restore from a backup file</span><button class="btn">Restore…</button></div>
+      </div>
+      <div class="section"><h2 class="serif">Security</h2><div class="kv"><span class="muted">App PIN</span><button class="btn">Change PIN</button></div></div>
+      <div class="section danger"><h2 class="serif">Danger zone</h2><p class="sdesc">Erase every expense, receipt, and report on this device and in your synced copy. This can't be undone.</p>
+        <span class="confirm-inline"><span class="muted">Clear all my data?</span> <button class="btn btn-danger" style="height:32px;">Yes, clear everything</button> <button class="auth-link">Cancel</button></span>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 21 settings mobile -->
+  <div class="state-label">21 · Settings — mobile (390px)</div>
+  <div class="grid">
+    <div class="frame phone"><div class="cap">/settings · 390px</div><div class="stage" style="display:block;padding:var(--space-4);min-height:auto;">
+      <h1 class="page-title serif" style="font-size:24px;">Settings</h1>
+      <div class="section" style="padding:var(--space-4);"><h2 class="serif" style="font-size:17px;">Account</h2><div class="kv"><span class="acct-mail">hang@example.com</span><button class="btn" style="height:32px;">Log out</button></div></div>
+      <div class="section" style="padding:var(--space-4);"><h2 class="serif" style="font-size:17px;">Backup</h2><div class="kv"><span class="muted">Export</span><button class="btn" style="height:32px;">Export</button></div><div class="kv"><span class="muted">Restore</span><button class="btn" style="height:32px;">Restore…</button></div></div>
+      <div class="section danger" style="padding:var(--space-4);"><h2 class="serif" style="font-size:17px;">Danger zone</h2><p class="sdesc">Wipe this device + your synced copy.</p><button class="btn btn-danger" style="width:100%;">Clear all my data</button></div>
+    </div></div>
+  </div>
+
+  <!-- 22 sync states -->
+  <div class="state-label">22 · Sync indicator — synced / syncing / offline</div>
+  <div class="grid">
+    <div class="frame" style="min-height:auto;"><div class="cap">three states</div><div class="stage" style="gap:var(--space-6);flex-direction:column;align-items:flex-start;min-height:auto;">
+      <div class="sync"><span class="dot synced"></span> Synced just now</div>
+      <div class="sync"><span class="dot syncing"></span> Syncing…</div>
+      <div class="sync"><span class="dot offline"></span> Offline · changes saved here</div>
+    </div></div>
+
+    <!-- 23 home card fix -->
+    <div class="frame" style="min-height:auto;"><div class="cap">23 · pending-payment card — fixed vs bug</div><div class="stage" style="gap:var(--space-6);flex-direction:column;min-height:auto;">
+      <div class="pp-card">
+        <div class="pp-eyebrow">Pending payment</div>
+        <div class="pp-num">TAEXPENSE26-1</div>
+        <div class="pp-amt">₫1,658,525</div>
+        <div class="pp-foot">Mark paid in Reports → History</div>
+      </div>
+      <div class="pp-card bad" style="border-style:dashed;opacity:.7;">
+        <div class="pp-eyebrow" style="color:var(--status-error)">Before (bug)</div>
+        <div class="pp-num">TAEXPENSE26-1</div>
+        <div class="pp-amt">₫1,658,525</div>
+      </div>
+    </div></div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,4 +1,16 @@
-// Thin client for the stateless server endpoints. Nothing here persists on the server.
+// Thin client for the server endpoints. Receipt processing stays stateless; the session
+// token (set by authClient) authorizes the now-gated processor + sync endpoints.
+
+let sessionToken: string | null = null;
+export function setSessionToken(token: string | null): void {
+  sessionToken = token;
+}
+export function getSessionToken(): string | null {
+  return sessionToken;
+}
+export function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  return sessionToken ? { ...extra, authorization: `Bearer ${sessionToken}` } : extra;
+}
 
 export interface ReceiptReading {
   date: string | null;
@@ -17,7 +29,7 @@ export interface ProcessReceiptResult {
 export async function processReceipt(file: File): Promise<ProcessReceiptResult> {
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch("/api/process-receipt", { method: "POST", body: form });
+  const res = await fetch("/api/process-receipt", { method: "POST", body: form, headers: authHeaders() });
   const body = await res.json().catch(() => ({}));
   if (res.status === 200 || res.status === 422) return body as ProcessReceiptResult;
   throw new ApiError(res.status, body?.error || `process-receipt failed (${res.status})`);
@@ -32,7 +44,7 @@ export interface FxResult {
 }
 
 export async function getFx(from: string, to = "VND"): Promise<FxResult> {
-  const res = await fetch(`/api/fx?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+  const res = await fetch(`/api/fx?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { headers: authHeaders() });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, body?.error || `fx failed (${res.status})`);
   return body as FxResult;
@@ -65,7 +77,7 @@ export interface GenerateReportResult {
 export async function generateReport(payload: GenerateReportPayload): Promise<GenerateReportResult> {
   const res = await fetch("/api/generate-report", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
   const body = await res.json().catch(() => ({}));

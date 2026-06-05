@@ -19,16 +19,23 @@ MQ Expense feels like a quiet, competent assistant that handles the tedious part
 - (Phase 3) The wife invites a peer via a link; the peer opens the app on their phone, sets up their own profile, and starts capturing expenses — their data is invisible to everyone else.
 
 ## Privacy & Data Posture
-Each user's expense data, profile, invoice details, bank details, receipt images, and generated reports live **only on their own device** in the browser's local storage (IndexedDB). The server stores nothing permanently.
 
-For every receipt the record retains **both images**: the original colour photo (a user safety-net — the untouched source) *and* the cleaned black-and-white scan used in the submission package. Both are stored privately in the user's own IndexedDB; neither is ever persisted on the server.
+> **Amended in Phase 3 (multi-user & sharing), with user sign-off.** Phases 1–2 were strictly device-local with a stateless server. Phase 3 introduces accounts and cross-device sync, which requires the server to store user data. The privacy guarantee changed deliberately — from "the server stores nothing" to "the server stores only data it has encrypted, scoped strictly per user." The text below reflects the Phase 3 onward posture.
 
-The server is stateless: it serves the web app and performs only momentary in-memory work — receipt reading, currency conversion, PDF assembly, Excel generation. A receipt photo passes through the server for a few seconds to be read by the AI and converted to the B&W scan, then both are returned to the user's device and discarded from the server immediately. Nothing is saved server-side. Ever.
+Each user's data is **local-first**: the working copy of their expenses, profile, invoice/bank details, receipt images, and reports lives in their own device's local storage (IndexedDB), exactly as before. The app is fully usable offline.
 
-Backup is user-controlled: the user downloads their own data file and re-imports it on any device. There is no server-side copy, no cloud backup, no hidden sync.
+To sync across a user's own devices, that data is also stored on the server **encrypted at rest, scoped strictly to that one account**. The encryption is **server-managed** (so a forgotten PIN can be reset and a user can never be permanently locked out) — meaning it is protected against outsiders and database-file theft, but it is *not* zero-knowledge: the running server can decrypt a user's data to serve it back to them. This trade was chosen for recoverability and convenience.
+
+**Strict per-user isolation is absolute.** No user can see another user's expenses, receipts, or reports — not even the manager who sent the invite. The manager sees only a roster of who has joined (name, email, status). Every data request is scoped to the authenticated account.
+
+For every receipt the record still retains **both images**: the original colour photo (a user safety-net) *and* the cleaned black-and-white scan used in the submission package — now synced (encrypted) across the user's devices.
+
+Receipt *processing* remains transient: a photo passes through the server's RAM only for the few seconds it takes the AI to read it and produce the B&W scan, and is never written to disk as part of processing. (It is the user's own synced data store, not the processing path, that now persists encrypted.)
+
+Backup remains user-controlled in addition to sync: a user can still export their own data file and import it on any device.
 
 ## Design Tool
-external-pencil
+claude-code-impeccable
 
 ## Master User Journey
 
@@ -48,4 +55,8 @@ external-pencil
 
 **Archive & Backup (Ph1):** Mark report paid → Archive it → Export all data as a backup file → Import file on a new device
 
-**Join (Ph3):** Receive invite link from manager → Set up own profile → Open app on any device → Start capturing in own private workspace
+**Invite (Ph3):** Manager generates an invite link → Shares it with a peer → Sees the peer appear on the name+email roster → (if needed) Revokes a peer's access
+
+**Join (Ph3):** Receive invite link from manager → Open it on any device → Create own account (name, email, PIN) → Own private workspace ready (existing on-device data brought in if present) → Start capturing exactly like the single-user flow
+
+**Account (Ph3):** Log in on any device with email + PIN → Quick-unlock with PIN thereafter → If PIN forgotten, ask the administrator to reset it (out-of-band; no email) → Log out → (or) Clear all own data and start fresh — with expenses syncing privately across the user's devices throughout. *(The manager account itself is seeded by the operator, not self-registered.)*
