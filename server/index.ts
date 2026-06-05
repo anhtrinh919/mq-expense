@@ -10,6 +10,7 @@ import { authRouter } from "./routes/auth.ts";
 import { invitePublicRouter, inviteManagerRouter, teamRouter } from "./routes/team.ts";
 import { syncRouter } from "./routes/sync.ts";
 import { accountRouter } from "./routes/account.ts";
+import { eventsRouter } from "./routes/events.ts";
 import { requireAuth } from "./lib/auth.ts";
 import { seedManager } from "./lib/auth.ts";
 
@@ -25,6 +26,7 @@ seedManager();
 app.use("/api", healthRouter);
 app.use("/api", authRouter); // register / login (logout self-gates)
 app.use("/api", invitePublicRouter); // GET /invites/:token — validate a link before joining
+app.use("/api", eventsRouter); // GET /events?token= — live-sync nudge stream (self-authenticating)
 
 // ---- Everything below requires a valid session ----
 app.use("/api", requireAuth);

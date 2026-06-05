@@ -3,6 +3,7 @@
 // by updatedAt and honoring delete tombstones. Blobs (receipt images, report files) are
 // base64-encoded in transit, like the .mqx backup.
 
+import { useSyncExternalStore } from "react";
 import { db, withSuppressedStamp } from "../data/db";
 import type { Table } from "dexie";
 import { getAccount, saveAccount, isAuthenticated } from "./authClient";
@@ -62,6 +63,28 @@ interface WireRecord {
 
 let syncing = false;
 let pending = false;
+
+// Lightweight pub/sub so open screens can re-query when a pull lands new data.
+// Bumps a counter; React screens read it via useSyncSignal() and add it to their load deps.
+let syncTick = 0;
+const syncListeners = new Set<() => void>();
+export function onSynced(fn: () => void): () => void {
+  syncListeners.add(fn);
+  return () => syncListeners.delete(fn);
+}
+export function syncSignal(): number {
+  return syncTick;
+}
+function emitSynced(): void {
+  syncTick++;
+  for (const fn of syncListeners) fn();
+}
+
+/** React hook: returns a counter that bumps whenever a pull lands new data.
+ *  Add it to a screen's data-load effect deps to keep the screen live. */
+export function useSyncSignal(): number {
+  return useSyncExternalStore(onSynced, syncSignal, syncSignal);
+}
 
 /** Push local changes, then pull remote ones. Safe to call often; coalesces concurrent calls. */
 export async function syncNow(): Promise<void> {
@@ -127,23 +150,34 @@ async function pull(): Promise<void> {
   const body = (await res.json()) as { records: WireRecord[]; cursor: number };
 
   let maxApplied = account.pushHigh;
+  let changed = 0;
   for (const rec of body.records) {
-    const store = rec.store as SyncStore;
-    const tbl = table(store);
-    if (rec.deleted) {
-      await tbl.delete(rec.recordId); // direct delete — no new tombstone (avoids echo)
-      continue;
-    }
-    const local = (await tbl.get(rec.recordId)) as { updatedAt?: number } | undefined;
-    if (!local || (local.updatedAt ?? 0) < rec.updatedAt) {
-      const row = decode(store, rec.data as Record<string, unknown>);
-      row.updatedAt = rec.updatedAt;
-      await withSuppressedStamp(() => tbl.put(row));
+    // One unreadable record must never wedge the whole stream: skip it, keep going, and
+    // still advance the cursor past it so we don't re-fetch the same poison every pull.
+    try {
+      const store = rec.store as SyncStore;
+      if (!STORES.includes(store)) throw new Error(`unknown store ${rec.store}`);
+      const tbl = table(store);
+      if (rec.deleted) {
+        await tbl.delete(rec.recordId); // direct delete — no new tombstone (avoids echo)
+        changed++;
+      } else {
+        const local = (await tbl.get(rec.recordId)) as { updatedAt?: number } | undefined;
+        if (!local || (local.updatedAt ?? 0) < rec.updatedAt) {
+          const row = decode(store, rec.data as Record<string, unknown>);
+          row.updatedAt = rec.updatedAt;
+          await withSuppressedStamp(() => tbl.put(row));
+          changed++;
+        }
+      }
+    } catch (e) {
+      console.warn(`[sync] skipped a bad record ${rec.store}/${rec.recordId}`, e);
     }
     if (rec.updatedAt > maxApplied) maxApplied = rec.updatedAt;
   }
   // Advance cursors. pushHigh moves past applied remote writes so we don't echo them back.
   await saveAccount({ pullCursor: body.cursor, pushHigh: maxApplied });
+  if (changed > 0) emitSynced(); // let open screens re-query
 }
 
 /** True if there is anything local to push (used to decide first-login migration). */

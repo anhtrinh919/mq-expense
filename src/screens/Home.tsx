@@ -3,16 +3,18 @@ import { Link } from "react-router-dom";
 import { listExpenses, listReports } from "../data/repos";
 import type { Expense, ExpenseReport } from "../data/types";
 import { vnd, fmtDateShort } from "../lib/format";
+import { useSyncSignal } from "../lib/sync";
 import "./Home.css";
 
 export default function Home() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [reports, setReports] = useState<ExpenseReport[]>([]);
+  const synced = useSyncSignal();
 
   useEffect(() => {
     listExpenses().then(setExpenses);
     listReports().then(setReports);
-  }, []);
+  }, [synced]);
 
   const unsubmitted = expenses.filter((e) => e.status === "pending");
   const unsubmittedSum = unsubmitted.reduce((s, e) => s + e.amountVND, 0);

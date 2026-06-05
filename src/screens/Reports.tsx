@@ -10,6 +10,7 @@ import { suggestInvoiceNumber } from "../lib/invoice";
 import { makeZip } from "../lib/zip";
 import { vnd, money, fmtDate, fmtDateShort, periodLabel, todayISO } from "../lib/format";
 import { PageHeader, StatusChip, EmptyState, Modal, Banner } from "../components/ui";
+import { useSyncSignal } from "../lib/sync";
 import "./Reports.css";
 
 type Tab = "create" | "history";
@@ -49,11 +50,12 @@ function Create({ onDone }: { onDone: () => void }) {
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [result, setResult] = useState<{ report: ExpenseReport } | null>(null);
 
+  const synced = useSyncSignal();
   useEffect(() => {
     getProfile().then(setProfile);
     listReports().then(setReports);
     listExpenses({ status: "pending" }).then(setPending);
-  }, []);
+  }, [synced]);
 
   // suggested invoice number once profile + reports load
   useEffect(() => {

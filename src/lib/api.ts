@@ -5,6 +5,9 @@ let sessionToken: string | null = null;
 export function setSessionToken(token: string | null): void {
   sessionToken = token;
 }
+export function getSessionToken(): string | null {
+  return sessionToken;
+}
 export function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
   return sessionToken ? { ...extra, authorization: `Bearer ${sessionToken}` } : extra;
 }

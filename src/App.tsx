@@ -20,6 +20,7 @@ import {
   wipeWorkspace,
 } from "./lib/authClient";
 import { syncNow, hasLocalData } from "./lib/sync";
+import { getSessionToken } from "./lib/api";
 import "./screens/Onboarding.css";
 
 function inviteTokenFromUrl(): string | null {
@@ -52,15 +53,33 @@ export default function App() {
     })();
   }, []);
 
-  // Background sync while signed in and unlocked.
+  // Background sync while signed in and unlocked. A live SSE channel nudges this device
+  // to pull the instant another device pushes; the interval poll is a fallback for when
+  // the stream is down (offline, proxy hiccup). Pulled data reaches open screens via the
+  // useSyncSignal hook — App state isn't churned here, so this effect subscribes once per
+  // signed-in session (keyed on email), not on every sync tick.
+  const authedEmail = account && isAuthenticated(account) && !locked && !migrate ? account.email : null;
   useEffect(() => {
-    if (!account || !isAuthenticated(account) || locked || migrate) return;
-    void syncNow().then(refresh);
-    const iv = setInterval(() => void syncNow().then(refresh), 30000);
-    const onVis = () => { if (document.visibilityState === "visible") void syncNow().then(refresh); };
+    if (!authedEmail) return;
+    void syncNow();
+    const iv = setInterval(() => void syncNow(), 60000);
+    const onVis = () => { if (document.visibilityState === "visible") void syncNow(); };
     document.addEventListener("visibilitychange", onVis);
-    return () => { clearInterval(iv); document.removeEventListener("visibilitychange", onVis); };
-  }, [account, locked, migrate, refresh]);
+
+    let es: EventSource | null = null;
+    const token = getSessionToken();
+    if (token && typeof EventSource !== "undefined") {
+      es = new EventSource(`/api/events?token=${encodeURIComponent(token)}`);
+      es.addEventListener("changed", () => void syncNow());
+      // EventSource auto-reconnects on error using the server's `retry` hint; nothing to do.
+    }
+
+    return () => {
+      clearInterval(iv);
+      document.removeEventListener("visibilitychange", onVis);
+      es?.close();
+    };
+  }, [authedEmail]);
 
   // After a fresh login/register: decide migration, pull, and skip the legacy wizard for new accounts.
   const handleAuthed = useCallback(async () => {

@@ -43,7 +43,7 @@ interface SessionRow {
   expires_at: number;
 }
 
-function resolveSession(token: string): AccountRow | undefined {
+export function resolveSession(token: string): AccountRow | undefined {
   const s = db.prepare("SELECT * FROM sessions WHERE token = ?").get(token) as
     | SessionRow
     | undefined;

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "../db/sqlite.ts";
 import { type AuthedRequest } from "../lib/auth.ts";
 import { unwrapDek, encryptRecord, decryptRecord } from "../lib/crypto.ts";
+import { notifyAccount } from "./events.ts";
 
 // The five client stores that sync. Drafts are transient and never sync.
 const STORES = new Set(["expenses", "images", "reports", "profile", "countryCodes"]);
@@ -94,6 +95,8 @@ syncRouter.post("/sync", (req, res) => {
     if (e instanceof BadRecord) return res.status(400).json({ error: "malformed record in batch" });
     throw e;
   }
+  // Nudge this account's other devices to pull the changes we just stored.
+  if (applied > 0) notifyAccount(account.id);
   res.json({ applied, cursor });
 });
 
