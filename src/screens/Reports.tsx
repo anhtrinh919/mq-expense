@@ -168,7 +168,7 @@ function Create({ onDone }: { onDone: () => void }) {
   return (
     <div className="create">
       {!complete && (
-        <Banner kind="attention" title="Finish Settings before generating a report" body={`Missing: ${gaps.join(", ")}.`} action={<Link to="/settings" className="btn">Go to Settings</Link>} />
+        <Banner kind="attention" title="Finish your profile before generating a report" body={`Missing: ${gaps.join(", ")}.`} action={<Link to="/profile" className="btn">Go to Profile</Link>} />
       )}
       <div className="create-cfg card">
         <label className="field"><span className="field-label">Start date</span><input className="input" type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>

@@ -33,7 +33,7 @@ export async function readReceipt(imagePath: string): Promise<Reading> {
 
   const r = await run(
     "claude",
-    ["-p", "--output-format", "json", "--permission-mode", "bypassPermissions", PROMPT + imagePath],
+    ["-p", "--model", "sonnet", "--output-format", "json", "--permission-mode", "bypassPermissions", PROMPT + imagePath],
     { timeoutMs: 60_000 },
   );
   if (r.code !== 0) return { date: null, amount: null, currency: null, confidence: "low" };

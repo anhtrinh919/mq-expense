@@ -51,7 +51,7 @@ function main() {
     CODES.forEach((c, i) => {
       const id = `cc_${now}_${i}`;
       const record = { id, country: c.country, accountCode: c.accountCode, sortOrder: i };
-      ins.run(account.id, id, encryptRecord(JSON.stringify(record), dek), now + 1, 0);
+      ins.run(account.id, id, encryptRecord(JSON.stringify(record), dek), now + 1);
     });
   });
   apply();

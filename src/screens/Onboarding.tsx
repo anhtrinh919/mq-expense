@@ -71,7 +71,7 @@ export default function Onboarding({ onDone, skipPin = false, defaultName = "" }
           <div className="onb-body">
             <div className="onb-prog">1 / 3</div>
             <h1 className="onb-title serif">A few quick details.</h1>
-            <p className="onb-sub muted">You can change any of this later in Settings.</p>
+            <p className="onb-sub muted">You can change any of this later in Profile.</p>
 
             <label className="onb-label">Your name</label>
             <input className="onb-input" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" />
