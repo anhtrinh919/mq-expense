@@ -49,6 +49,7 @@ export default function Capture() {
   const [restored, setRestored] = useState(false);
   const [rateErrs, setRateErrs] = useState<Record<string, string>>({});
   const fileInput = useRef<HTMLInputElement>(null);
+  const galleryInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const rateCache = useRef<Map<string, number>>(new Map());
   const codesRef = useRef<CountryCode[]>([]);
@@ -267,9 +268,11 @@ export default function Capture() {
           <p className="muted">PDF or any image · several files at once is fine</p>
           <div className="dz-ctas">
             <button className="btn btn-primary" onClick={() => fileInput.current?.click()}>Choose files</button>
+            {isTouch && <button className="btn cap-camera" onClick={() => galleryInput.current?.click()}>🖼️ Photos</button>}
             {isTouch && <button className="btn cap-camera" onClick={() => cameraInput.current?.click()}>📷 Take photo</button>}
           </div>
           <input ref={fileInput} type="file" accept={ACCEPT} multiple hidden onChange={(e) => e.target.files && addFiles(e.target.files)} />
+          <input ref={galleryInput} type="file" accept="image/*" multiple hidden onChange={(e) => e.target.files && addFiles(e.target.files)} />
           <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={(e) => e.target.files && addFiles(e.target.files)} />
         </div>
         <div className="cap-tips">
