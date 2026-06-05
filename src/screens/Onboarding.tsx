@@ -8,9 +8,10 @@ import "./Onboarding.css";
 type Step = "welcome" | "details" | "pin" | "done" | "restore";
 
 // Full-bleed first-run wizard. Collects only the essentials, then lands the user ready to capture.
-export default function Onboarding({ onDone }: { onDone: () => void }) {
+// skipPin: the account already set a PIN at login (Phase 3), so the soft-lock step is redundant.
+export default function Onboarding({ onDone, skipPin = false, defaultName = "" }: { onDone: () => void; skipPin?: boolean; defaultName?: string }) {
   const [step, setStep] = useState<Step>("welcome");
-  const [name, setName] = useState("");
+  const [name, setName] = useState(defaultName);
   const [country, setCountry] = useState("Vietnam");
   const [currency, setCurrency] = useState("VND");
   const [currencyEdit, setCurrencyEdit] = useState(false);
@@ -95,7 +96,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 
             <div className="onb-nav">
               <button className="btn btn-ghost" onClick={() => setStep("welcome")}>Back</button>
-              <button className="btn btn-primary" disabled={!name.trim()} onClick={() => setStep("pin")}>Continue</button>
+              <button className="btn btn-primary" disabled={!name.trim()} onClick={() => skipPin ? void finishToGuide(null) : setStep("pin")}>Continue</button>
             </div>
           </div>
         )}

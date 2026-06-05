@@ -124,6 +124,26 @@ export async function verifyLocalPin(pin: string): Promise<boolean> {
   return verifyPin(pin, a.pinHashLocal);
 }
 
+// ---- quick-unlock grace period (device-local; never synced) ----
+// After a successful login/unlock we don't re-prompt for the PIN on every refresh —
+// only once the grace window has elapsed. Stored in localStorage so it survives reloads
+// but stays per-device (each device locks on its own schedule).
+const UNLOCK_GRACE_MS = 60 * 60 * 1000; // 1 hour
+const UNLOCK_KEY = "mqx:lastUnlock";
+
+export function markUnlocked(): void {
+  try { localStorage.setItem(UNLOCK_KEY, String(Date.now())); } catch { /* storage blocked */ }
+}
+export function isWithinUnlockGrace(): boolean {
+  try {
+    const t = Number(localStorage.getItem(UNLOCK_KEY) || 0);
+    return t > 0 && Date.now() - t < UNLOCK_GRACE_MS;
+  } catch { return false; }
+}
+export function clearUnlock(): void {
+  try { localStorage.removeItem(UNLOCK_KEY); } catch { /* storage blocked */ }
+}
+
 export async function logout(): Promise<void> {
   const a = await getAccount();
   if (a.sessionToken) {

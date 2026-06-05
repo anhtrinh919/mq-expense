@@ -2,6 +2,13 @@
 
 Living tracker for small UI/UX fixes outside the phase roadmap. Newest batch at top. `[ ]` open · `[x]` shipped to production.
 
+## 2026-06-05 (batch 2)
+
+- [x] **Expenses: drop the top-right Capture** — now a single prominent "+ Capture a receipt" CTA above the filters on every screen size.
+- [x] **Change PIN fails with a vague error** — client now shows the server's real reason (e.g. signed-out prompt) and a local post-save step can no longer turn a successful change into a failure.
+- [x] **Onboard new users on first run** — fresh accounts now run the first-run wizard (name/country/currency), with the redundant soft-lock step skipped since they already set a login PIN. Triggers on first login.
+- [x] **PIN lock grace period** — 1-hour device-local grace after unlocking; refreshes within the hour no longer re-prompt for the PIN.
+
 ## 2026-06-05
 
 - [x] **Mobile text wrap** — Reports "Go to Settings" button no longer breaks to 2 lines; the orphan Start→End date arrow is hidden on mobile; capture buttons no longer wrap (replaced by one button).

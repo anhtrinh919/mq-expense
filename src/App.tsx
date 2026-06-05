@@ -18,7 +18,11 @@ import {
   isAuthenticated,
   logout as doLogout,
   wipeWorkspace,
+  markUnlocked,
+  isWithinUnlockGrace,
+  clearUnlock,
 } from "./lib/authClient";
+import Onboarding from "./screens/Onboarding";
 import { syncNow, hasLocalData } from "./lib/sync";
 import { getSessionToken } from "./lib/api";
 import "./screens/Onboarding.css";
@@ -36,6 +40,7 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [locked, setLocked] = useState(false);
   const [migrate, setMigrate] = useState(false);
+  const [onboard, setOnboard] = useState(false);
   const inviteToken = inviteTokenFromUrl();
 
   const refresh = useCallback(async () => {
@@ -48,7 +53,9 @@ export default function App() {
     (async () => {
       const a = await restoreSession();
       setAccount(a);
-      setLocked(isAuthenticated(a) && !!a.pinHashLocal); // require quick-unlock on a fresh open
+      // Quick-unlock on open, but honour the 1-hour grace window so a refresh mid-session
+      // doesn't re-prompt for the PIN every time.
+      setLocked(isAuthenticated(a) && !!a.pinHashLocal && !isWithinUnlockGrace());
       setLoaded(true);
     })();
   }, []);
@@ -58,7 +65,7 @@ export default function App() {
   // the stream is down (offline, proxy hiccup). Pulled data reaches open screens via the
   // useSyncSignal hook — App state isn't churned here, so this effect subscribes once per
   // signed-in session (keyed on email), not on every sync tick.
-  const authedEmail = account && isAuthenticated(account) && !locked && !migrate ? account.email : null;
+  const authedEmail = account && isAuthenticated(account) && !locked && !migrate && !onboard ? account.email : null;
   useEffect(() => {
     if (!authedEmail) return;
     void syncNow();
@@ -86,6 +93,7 @@ export default function App() {
     const a = await getAccount();
     setAccount(a);
     setLocked(false);
+    markUnlocked(); // a fresh login/unlock starts the grace window
     if (a.pullCursor === 0 && a.pushHigh === 0 && (await hasLocalData())) {
       setMigrate(true);
       return;
@@ -93,7 +101,8 @@ export default function App() {
     await syncNow();
     const p = await getProfile();
     if (!p.onboardingComplete) {
-      await saveProfile({ ...p, onboardingComplete: true, submitter: { ...p.submitter, name: p.submitter.name || a.name || "" } });
+      setOnboard(true); // brand-new account → run the first-run wizard
+      return;
     }
     await refresh();
   }, [refresh]);
@@ -112,9 +121,11 @@ export default function App() {
 
   async function onLogout() {
     await doLogout();
+    clearUnlock();
     await refresh();
     setLocked(false);
     setMigrate(false);
+    setOnboard(false);
   }
 
   if (!loaded || !account) return null;
@@ -127,7 +138,7 @@ export default function App() {
 
   // Signed in but the app was just opened: quick PIN unlock (local, offline).
   if (locked) {
-    return <Login initialMode="unlock" knownName={account.name} knownEmail={account.email} onAuthed={() => { setLocked(false); }} />;
+    return <Login initialMode="unlock" knownName={account.name} knownEmail={account.email} onAuthed={() => { markUnlocked(); setLocked(false); }} />;
   }
 
   // First login on a device that already has data: offer to bring it in.
@@ -144,6 +155,18 @@ export default function App() {
           </div>
         </div>
       </div>
+    );
+  }
+
+  // Brand-new account: run the first-run wizard once. The account already set a PIN at
+  // login, so the wizard's soft-lock step is skipped (skipPin).
+  if (onboard) {
+    return (
+      <Onboarding
+        skipPin
+        defaultName={account.name ?? ""}
+        onDone={async () => { setOnboard(false); await refresh(); }}
+      />
     );
   }
 

@@ -1,8 +1,12 @@
 .expenses {
   max-width: var(--maxw);
 }
-/* Prominent capture CTA above the filters — mobile only (desktop has it in the header). */
-.exp-cap-cta { display: none; }
+/* The one capture button on this page: a prominent CTA above the filters. */
+.exp-cap-cta {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-bottom: var(--space-4);
+}
 
 .filter-bar {
   display: flex;
@@ -140,13 +144,12 @@
   .exp-desc { grid-column: 1 / -1; }
   .edit-grid { grid-template-columns: 1fr; }
   .filt-in { width: 130px; }
-  .exp-head-cap { display: none; }
   .exp-cap-cta {
     display: flex;
+    align-self: stretch;
     width: 100%;
     justify-content: center;
     padding: 14px;
     font-size: 15px;
-    margin-bottom: var(--space-4);
   }
 }

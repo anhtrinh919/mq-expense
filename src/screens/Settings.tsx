@@ -120,11 +120,26 @@ function SecuritySection() {
         headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ currentPin: cur, newPin: pin }),
       });
-      if (!res.ok) throw new ApiError(res.status, "");
-      await saveAccount({ pinHashLocal: await hashPin(pin) });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        const msg =
+          res.status === 401
+            ? data.error === "session expired" || data.error === "not signed in"
+              ? "You're signed out — log in again, then change your PIN."
+              : "Your current PIN didn't match."
+            : data.error || "Couldn't change PIN. Try again.";
+        throw new ApiError(res.status, msg);
+      }
+      // Server is the source of truth — it already changed the PIN. Updating the local
+      // quick-unlock hash must never turn that success into a visible failure.
+      try {
+        await saveAccount({ pinHashLocal: await hashPin(pin) });
+      } catch {
+        /* local hash refresh failed; the new PIN still works via the server */
+      }
       setEditing(false); setDone(true); setCur(""); setPin(""); setConfirm("");
     } catch (e) {
-      setErr(e instanceof ApiError && e.status === 401 ? "Your current PIN didn't match." : "Couldn't change PIN. Try again.");
+      setErr(e instanceof ApiError && e.message ? e.message : "Couldn't change PIN. Try again.");
     } finally {
       setBusy(false);
     }

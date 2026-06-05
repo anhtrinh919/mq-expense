@@ -57,7 +57,6 @@ export default function Expenses() {
         right={
           <>
             <button className="btn" onClick={exportCsv} disabled={rows.length === 0}>Export CSV</button>
-            <Link to="/capture" className="btn btn-primary exp-head-cap">+ Capture</Link>
           </>
         }
       />
