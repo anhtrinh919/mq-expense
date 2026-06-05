@@ -25,3 +25,16 @@
 - Reports download as a single .zip (PDF + Excel) so Chrome no longer prompts for multiple files.
 - Design fidelity: Instrument Serif applied to headings app-wide; mobile bottom-nav + center capture FAB rebuilt to match the design.
 - Still single-user and local-only — the server persists nothing.
+
+## Phase 3 — Multi-User & Sharing (2026-06-05)
+
+- Invite-only accounts layered on top of the proven single-user app: the manager account is seeded by the operator (never self-registered); peers join via an invite link/code and each gets a fully private workspace.
+- Strict per-user data isolation — no user (not even the inviting manager) can see another's expenses, receipts, or reports. The manager sees only a name + email + status roster.
+- Server now stores each user's data **encrypted at rest** (AES-256-GCM, per-account data key wrapped by a server master key; PINs scrypt-hashed; opaque session tokens). Server-managed key = recoverable, deliberately not zero-knowledge.
+- Cross-device sync: last-write-wins by updatedAt with delete tombstones, pushed/pulled over the encrypted REST channel; blobs (receipts, report files) base64 in transit.
+- **Instant live sync** via a Server-Sent-Events nudge channel (zero new deps): one device's save pokes the user's other devices to pull within ~1s; falls back to a 60s poll + on-focus sync when the stream is down.
+- Sync resilience: one unreadable record can no longer wedge the whole stream (skip-and-advance), and the background-sync effect subscribes once per signed-in session (no render-rate loop).
+- PIN reset is out-of-band only — operator runs an admin script; no email and no in-app reset flow (per privacy posture).
+- Account screens built whole this phase: Join (create account), Login/Unlock (email+PIN, quick PIN unlock, first-login data-migration prompt, disabled/locked-out/forgot states), and the manager Invite & Team roster (generate/revoke).
+- Profile/Settings restructure: Profile holds personal/invoice/bank/country config; Settings holds account + data (export backup, restore, change PIN, clear-all-my-data).
+- Privacy posture amended with user sign-off: server moves from "stores nothing" to "stores only per-account, encrypted-at-rest data" solely to sync a user's own devices.
