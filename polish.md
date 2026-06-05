@@ -4,9 +4,9 @@ Living tracker for small UI/UX fixes outside the phase roadmap. Newest batch at 
 
 ## 2026-06-05
 
-- [ ] **Mobile text wrap** — awkward wrapping in places (Reports "Go to Settings" button breaks to 2 lines, the Start→End date arrow sits alone, capture buttons wrap).
-- [ ] **Mobile nav labels too small** — bump the bottom-nav text size.
-- [ ] **Capture review: clear "Delete"** — add an explicit Delete action when reviewing a receipt (currently only "Skip", which is ambiguous).
-- [ ] **Capture review: skip ≠ delete** — skipping should set a receipt aside, not remove it; let the user go back to skipped receipts.
-- [ ] **Capture: one button + dropdown** — replace the 3 source buttons with a single prominent "Add receipts" button offering Gallery / Camera / Files.
-- [ ] **Expenses: prominent Capture CTA** — make the capture button stand out, placed above the From/To filters.
+- [x] **Mobile text wrap** — Reports "Go to Settings" button no longer breaks to 2 lines; the orphan Start→End date arrow is hidden on mobile; capture buttons no longer wrap (replaced by one button).
+- [x] **Mobile nav labels too small** — bottom-nav text bumped 11px → 13px.
+- [x] **Capture review: clear "Delete"** — explicit "🗑 Delete" action added when reviewing a receipt.
+- [x] **Capture review: skip ≠ delete** — "Skip" now sets a receipt aside and wraps around (recoverable); tap any progress bar to jump back to a skipped one.
+- [x] **Capture: one button + dropdown** — single "+ Add receipts" button with Gallery / Camera / Files options.
+- [x] **Expenses: prominent Capture CTA** — full-width "+ Capture a receipt" above the From/To filters on mobile.
