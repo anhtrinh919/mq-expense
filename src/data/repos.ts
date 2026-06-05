@@ -54,11 +54,15 @@ export function isProfileComplete(p: Profile): boolean {
 // ---------- Country codes ----------
 
 const SEED_CODES: Array<Omit<CountryCode, "id">> = [
-  { country: "Vietnam", accountCode: "Vietnam: 8741-4105", sortOrder: 0 },
-  { country: "Thailand", accountCode: "Thailand: 8741-4103", sortOrder: 1 },
-  { country: "Cambodia", accountCode: "Cambodia: 8741-4109", sortOrder: 2 },
-  { country: "Myanmar", accountCode: "Myanmar: 8741-4108", sortOrder: 3 },
-  { country: "Australia", accountCode: "Australia: 8741-XXXX", sortOrder: 4 },
+  { country: "Cambodia", accountCode: "8741/4109", sortOrder: 0 },
+  { country: "Indonesia", accountCode: "8741/4104", sortOrder: 1 },
+  { country: "Malaysia", accountCode: "8741/4102", sortOrder: 2 },
+  { country: "Myanmar", accountCode: "8741/4108", sortOrder: 3 },
+  { country: "Philippines", accountCode: "8741/4106", sortOrder: 4 },
+  { country: "Singapore", accountCode: "8741/4107", sortOrder: 5 },
+  { country: "Thailand", accountCode: "8741/4103", sortOrder: 6 },
+  { country: "Vietnam", accountCode: "8741/4105", sortOrder: 7 },
+  { country: "SEA Head Office & Others", accountCode: "8741/410", sortOrder: 8 },
 ];
 
 /** Seeds the SEA example codes on first run (only when none exist). Returns true if it seeded. */
