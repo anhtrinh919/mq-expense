@@ -2,6 +2,10 @@
 
 Living tracker for small UI/UX fixes outside the phase roadmap. Newest batch at top. `[ ]` open · `[x]` shipped to production.
 
+## 2026-06-05 (batch 3)
+
+- [x] **Stale app after a deploy** — browsers cached `index.html`, so after an update the old shell pointed at JS files that no longer existed ("works in incognito" / "couldn't reach server"). Server now sends `no-cache` on `index.html` and long-lived immutable caching on the hashed bundles, so updates load cleanly without a hard refresh.
+
 ## 2026-06-05 (batch 2)
 
 - [x] **Expenses: drop the top-right Capture** — now a single prominent "+ Capture a receipt" CTA above the filters on every screen size.

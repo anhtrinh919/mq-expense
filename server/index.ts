@@ -41,8 +41,21 @@ app.use("/api", accountRouter); // clear my data
 // In production, serve the built SPA from dist/ on the same port (single homepc-1 process).
 const distDir = resolve(SERVER_DIR, "..", "dist");
 if (existsSync(distDir)) {
-  app.use(express.static(distDir));
-  app.get(/^(?!\/api).*/, (_req, res) => res.sendFile(resolve(distDir, "index.html")));
+  // Content-hashed bundles never change for a given name — cache them hard.
+  app.use("/assets", express.static(resolve(distDir, "assets"), { immutable: true, maxAge: "1y" }));
+  // Everything else: serve normally, but index.html must always revalidate so a new
+  // deploy's asset hashes are picked up immediately instead of from a stale cached shell.
+  app.use(
+    express.static(distDir, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith("index.html")) res.setHeader("Cache-Control", "no-cache");
+      },
+    }),
+  );
+  app.get(/^(?!\/api).*/, (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
+    res.sendFile(resolve(distDir, "index.html"));
+  });
 }
 
 app.listen(PORT, () => {
