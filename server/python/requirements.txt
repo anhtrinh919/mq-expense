@@ -1,6 +1,6 @@
 # Python deps for receipt scanning + report assembly. Pinned exactly (reproducible builds).
 Pillow==12.1.1
-numpy==2.4.2
+numpy==2.2.6  # capped by opencv-python-headless 4.12.0.88 (linux/cp312); 2.4.x is unsatisfiable
 openpyxl==3.1.5
 pypdf==6.12.2
 opencv-python-headless==4.12.0.88
