@@ -23,10 +23,15 @@ export function run(cmd: string, args: string[], opts: { input?: string; timeout
   });
 }
 
-/** First command on PATH that exists, else null. */
+/** First command on PATH that exists, else null. `command -v` is a shell builtin,
+ *  so it must run inside a shell — spawning "command" directly is ENOENT (it's not a
+ *  binary), which previously made every lookup fail and silently disabled the reader. */
 export async function which(...candidates: string[]): Promise<string | null> {
   for (const c of candidates) {
-    const r = await run(process.platform === "win32" ? "where" : "command", process.platform === "win32" ? [c] : ["-v", c]);
+    const r =
+      process.platform === "win32"
+        ? await run("where", [c])
+        : await run("sh", ["-c", `command -v ${c}`]);
     if (r.code === 0 && r.stdout.trim()) return c;
   }
   return null;
