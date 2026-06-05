@@ -299,6 +299,9 @@
   margin-top: var(--space-5);
   font-size: 13px;
 }
+/* Big, thumb-reachable save button at the bottom of the inspector — mobile only.
+   On desktop the header "Save & next" button is used instead. */
+.cap-save-mobile { display: none; }
 @media (max-width: 860px) {
   .rev-body {
     grid-template-columns: 1fr;
@@ -313,4 +316,13 @@
   .rev-prog { width: 100%; order: 3; gap: 6px; }
   .prog-seg { height: 8px; max-width: none; }
   .rev-actions { width: 100%; }
+  /* hide the cramped top "Save & next" — use the full-width one under the fields instead */
+  .cap-save-top { display: none; }
+  .cap-save-mobile {
+    display: block;
+    width: 100%;
+    margin-top: var(--space-3);
+    padding: 14px;
+    font-size: 16px;
+  }
 }

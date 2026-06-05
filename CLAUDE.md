@@ -17,6 +17,7 @@ Local-first expense tool for a Macquarie SEA sales manager + invited peers. Reac
 - **Forgotten PIN:** `tsx server/scripts/reset-pin.ts <email> <newPin>` on homepc-1. No email, no in-app reset (by design).
 - **Python deps:** numpy is capped at **2.2.6** by opencv-python-headless 4.12 on linux/cp312 (2.4.x is unsatisfiable). Deps live in a venv at `server/python/.venv`; the service points at it via `PYTHON_BIN`.
 - **Receipt auto-read shells out to the `claude` CLI.** The systemd `PATH` must include `/home/tuana/.local/bin` or it silently degrades to manual date/amount entry.
+- **Full report generation needs LibreOffice (`soffice`) on the box** — a system package, not a pip dep, so it's easily missed (only the venv is documented). The report's xlsx→PDF step shells out to `soffice --headless`; without it the report fails with "report assembly failed". Install: `sudo apt-get install -y libreoffice-calc`. The Expenses "Export Excel" button (`/api/export-expenses-xlsx`, pure openpyxl) does NOT need it.
 - **Reboot survival:** the systemd service is enabled, so it returns when WSL/systemd starts. Full PC-reboot survival depends on WSL auto-starting on Windows boot — the long-lived ollama tunnel on the same box suggests that's already configured; confirm after the next real reboot.
 - **Master key never goes to the chat transcript** (the auto-mode classifier blocks it, correctly). Read it on the box for backup; don't echo it.
 

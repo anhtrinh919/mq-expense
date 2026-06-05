@@ -15,6 +15,7 @@ Source of truth for running MQ Expense in production. Read this before any deplo
 2. **Cloudflare ingress** — `mqexpense.ta-infra.uk` added as a 5th ingress hostname on the existing `ollama-local` tunnel (`~/.cloudflared/config.yml`), served by the already-running `cloudflared.service`. No new tunnel or login needed (account cert already present).
 3. **Python sidecar** — receipt deskew + report assembly run from a venv at `server/python/.venv` (Pillow, numpy, openpyxl, pypdf, opencv-python-headless, all pinned).
 4. **Receipt auto-read** — shells out to the `claude` CLI on homepc-1; degrades to manual entry if unavailable.
+5. **LibreOffice (`soffice`)** — system package, NOT a pip dep. The full report's xlsx→PDF step shells out to `soffice --headless`. Without it, report generation fails with "report assembly failed → LibreOffice (soffice) not found". Install once: `sudo apt-get install -y libreoffice-calc`. (The Expenses "Export Excel" path is pure openpyxl and does NOT need it.)
 
 ## Persistent state (never in git, never overwritten by a redeploy)
 
@@ -41,7 +42,7 @@ PATH=/home/tuana/.local/bin:/usr/local/bin:/usr/bin:/bin
 
 1. `git clone git@github.com:anhtrinh919/mq-expense.git ~/dev/mq-expense` on homepc-1.
 2. `npm ci` (compiles better-sqlite3 against Node 24).
-3. `python3 -m venv server/python/.venv && server/python/.venv/bin/pip install -r server/python/requirements.txt`. Point the server at it with `PYTHON_BIN=server/python/.venv/bin/python` (add to the env file).
+3. `python3 -m venv server/python/.venv && server/python/.venv/bin/pip install -r server/python/requirements.txt`. Point the server at it with `PYTHON_BIN=server/python/.venv/bin/python` (add to the env file). Also `sudo apt-get install -y libreoffice-calc` — the report's xlsx→PDF step needs `soffice`.
 4. `npm run build` → `dist/`.
 5. Create `/etc/mq-expense/mq-expense.env` (above), generate the master key with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
 6. Install `mq-expense.service`, `systemctl enable --now mq-expense`.

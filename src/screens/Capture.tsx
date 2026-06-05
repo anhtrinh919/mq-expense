@@ -54,6 +54,7 @@ export default function Capture() {
   const cameraInput = useRef<HTMLInputElement>(null);
   const rateCache = useRef<Map<string, number>>(new Map());
   const codesRef = useRef<CountryCode[]>([]);
+  const preferredRef = useRef<string>("");
   const [, forceTick] = useState(0);
   const [isTouch] = useState(() => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
 
@@ -63,7 +64,7 @@ export default function Capture() {
 
   // ---- load profile/codes + restore an in-progress draft ----
   useEffect(() => {
-    getProfile().then(setProfile);
+    getProfile().then((p) => { setProfile(p); preferredRef.current = p.preferredCountry || ""; });
     listCountryCodes().then((c) => { setCodes(c); codesRef.current = c; });
     loadCaptureDraft().then((d) => {
       if (!d || !d.items.length) return;
@@ -116,7 +117,7 @@ export default function Capture() {
       const res = await processReceipt(file);
       const r = res.reading;
       const lowconf = !!res.error || r.confidence === "low" || r.amount == null || r.date == null;
-      const def = codesRef.current[0];
+      const def = codesRef.current.find((c) => c.country === preferredRef.current) || codesRef.current[0];
       setQueue((q) => q.map((it) => it.id === id ? {
         ...it,
         status: lowconf ? "lowconf" : "ready",
@@ -365,8 +366,15 @@ export default function Capture() {
   const rateErr = isForeign ? rateErrs[ccyUp] : undefined;
   const canSave = !!current && savableOf(current);
 
+  // Enter anywhere in the review pane saves the current receipt and advances — except when a
+  // button (Skip / Delete / Review all) has focus, where Enter should activate that button.
+  function onReviewKeyDown(e: React.KeyboardEvent) {
+    if (e.key !== "Enter" || e.shiftKey || (e.target as HTMLElement).tagName === "BUTTON") return;
+    if (canSave) { e.preventDefault(); void saveCurrent(); }
+  }
+
   return (
-    <div className="capture reviewing">
+    <div className="capture reviewing" onKeyDown={onReviewKeyDown}>
       <div className="rev-head">
         <div className="rev-title">
           <h1 className="page-title">Reviewing queue</h1>
@@ -381,7 +389,7 @@ export default function Capture() {
           <button className="btn btn-ghost" onClick={() => setView("reviewall")}>Review all ({queue.length})</button>
           <button className="btn btn-ghost" onClick={skipCurrent} disabled={queue.length < 2} title="Set aside — you can come back to it">Skip</button>
           <button className="btn btn-ghost cap-del" onClick={() => current && removeItem(current.id)} title="Remove this receipt for good">🗑 Delete</button>
-          <button className="btn btn-primary" disabled={!canSave} onClick={() => void saveCurrent()}>Save &amp; next ↵</button>
+          <button className="btn btn-primary cap-save-top" disabled={!canSave} onClick={() => void saveCurrent()}>Save &amp; next ↵</button>
         </div>
       </div>
 
@@ -453,6 +461,7 @@ export default function Capture() {
               <div className="tertiary num">{current?.amount} {ccyUp} × {effectiveRate(rateCache.current.get(ccyUp)!, markup).toFixed(2)} (xe.com +{markup}%)</div>
             )}
           </div>
+          <button className="btn btn-primary cap-save-mobile" disabled={!canSave} onClick={() => void saveCurrent()}>Save &amp; next ↵</button>
         </div>
       </div>
       {savedFlash && <div className="saved-flash">✓ Saved — {savedFlash}</div>}

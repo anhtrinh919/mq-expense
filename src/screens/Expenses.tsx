@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { listExpenses, listCountryCodes, updateExpense, deleteExpense, type ExpenseFilter } from "../data/repos";
 import type { Expense, CountryCode } from "../data/types";
-import { getFx, ApiError } from "../lib/api";
+import { getFx, exportExpensesXlsx, base64ToBlob, ApiError } from "../lib/api";
 import { toVND, effectiveRate, conversionNote, rateSource } from "../lib/currency";
 import { getProfile } from "../data/repos";
 import { vnd, money, num, fmtDate } from "../lib/format";
-import { PageHeader, StatusChip, EmptyState, Modal } from "../components/ui";
+import { PageHeader, StatusChip, EmptyState, Modal, Banner } from "../components/ui";
 import ReceiptViewer from "../components/ReceiptViewer";
 import { useSyncSignal } from "../lib/sync";
 import "./Expenses.css";
@@ -21,6 +21,8 @@ export default function Expenses() {
   const [editing, setEditing] = useState<Expense | null>(null);
   const [viewing, setViewing] = useState<Expense | null>(null);
   const [deleting, setDeleting] = useState<Expense | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportErr, setExportErr] = useState<string | null>(null);
 
   const synced = useSyncSignal();
   const reload = useCallback(() => { listExpenses(filter).then(setRows); }, [filter]);
@@ -39,14 +41,26 @@ export default function Expenses() {
   const bases = new Set(rows.map((e) => e.baseCurrency || "VND"));
   const totalLabel = bases.size === 1 ? money(total, [...bases][0]) : num(total, 0);
 
-  function exportCsv() {
-    const head = ["Date", "Description", "Original", "Currency", "Rate", "VND", "Country", "Account code", "Status", "Invoice"];
-    const lines = rows.map((e) => [
-      e.date, e.description, e.originalAmount ?? "", e.originalCurrency ?? "VND", e.exchangeRate ?? "",
-      e.amountVND, e.country, e.accountCode, e.status, e.invoiceNumber ?? "",
-    ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
-    const csv = [head.join(","), ...lines].join("\n");
-    downloadBlob(new Blob([csv], { type: "text/csv" }), `expenses-${new Date().toISOString().slice(0, 10)}.csv`);
+  // Export the currently-filtered rows as the same formatted Excel ledger the Macquarie
+  // report produces (subtotals per account code + grand total) — a partial-report export.
+  async function exportXlsx() {
+    if (rows.length === 0 || exporting) return;
+    setExporting(true); setExportErr(null);
+    try {
+      const dates = rows.map((e) => e.date).sort();
+      const bases = new Set(rows.map((e) => e.baseCurrency || "VND"));
+      const res = await exportExpensesXlsx({
+        baseCurrency: bases.size === 1 ? [...bases][0] : "VND",
+        periodLabel: dates.length ? `${dates[0]} – ${dates[dates.length - 1]}` : "",
+        expenses: rows.map((e) => ({ date: e.date, description: e.description, amountVND: e.amountVND, accountCode: e.accountCode })),
+      });
+      const blob = base64ToBlob(res.expenseXlsx.dataBase64, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      downloadBlob(blob, res.expenseXlsx.filename);
+    } catch (e) {
+      setExportErr(e instanceof ApiError ? e.message : "Excel export failed.");
+    } finally {
+      setExporting(false);
+    }
   }
 
   return (
@@ -56,10 +70,12 @@ export default function Expenses() {
         subtitle="All receipts captured on this device"
         right={
           <>
-            <button className="btn" onClick={exportCsv} disabled={rows.length === 0}>Export CSV</button>
+            <button className="btn" onClick={exportXlsx} disabled={rows.length === 0 || exporting}>{exporting ? "Exporting…" : "Export Excel"}</button>
           </>
         }
       />
+
+      {exportErr && <Banner kind="error" title="Couldn't export Excel" body={exportErr} />}
 
       <Link to="/capture" className="btn btn-primary exp-cap-cta">+ Capture a receipt</Link>
 

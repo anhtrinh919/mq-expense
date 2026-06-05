@@ -81,8 +81,35 @@ export async function generateReport(payload: GenerateReportPayload): Promise<Ge
     body: JSON.stringify(payload),
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, body?.error || `generate-report failed (${res.status})`);
+  if (!res.ok) throw new ApiError(res.status, withDetail(body, `generate-report failed (${res.status})`));
   return body as GenerateReportResult;
+}
+
+export interface ExportXlsxPayload {
+  baseCurrency: string;
+  periodLabel: string;
+  expenses: Array<{ date: string; description: string; amountVND: number; accountCode: string }>;
+}
+
+export interface ExportXlsxResult {
+  expenseXlsx: { filename: string; dataBase64: string };
+}
+
+export async function exportExpensesXlsx(payload: ExportXlsxPayload): Promise<ExportXlsxResult> {
+  const res = await fetch("/api/export-expenses-xlsx", {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(payload),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, withDetail(body, `excel export failed (${res.status})`));
+  return body as ExportXlsxResult;
+}
+
+/** Build a user-facing message that includes the server's `detail` when present. */
+function withDetail(body: { error?: string; detail?: string }, fallback: string): string {
+  const base = body?.error || fallback;
+  return body?.detail ? `${base} — ${body.detail}` : base;
 }
 
 export interface HealthResult {

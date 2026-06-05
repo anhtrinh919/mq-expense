@@ -245,6 +245,12 @@ def main():
     expense_xlsx = out / "expenses.xlsx"
     total = generate_expense_xlsx(expenses, expense_xlsx, job.get("periodLabel", ""), job.get("baseCurrency", "VND"))
 
+    # "xlsx" mode: just the formatted expense ledger — no invoice, no PDF, no LibreOffice.
+    # Used by the Expenses screen's "Export Excel" for a filtered (partial) selection.
+    if job.get("mode") == "xlsx":
+        print(json.dumps({"expenseXlsx": str(expense_xlsx)}))
+        return
+
     invoice_xlsx = out / "invoice.xlsx"
     generate_invoice(job, total, invoice_xlsx)
 

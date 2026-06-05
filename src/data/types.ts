@@ -58,6 +58,7 @@ export interface Profile {
   currencyMarkupPct: number;
   baseCurrency: string; // reimbursement currency (was fixed "VND" in Phase 1)
   homeCountry: string; // country chosen at onboarding that seeded baseCurrency
+  preferredCountry: string; // default country/account code pre-filled on every new capture ("" = use first code)
   pinHash: string | null; // hash of the app PIN, or null when no PIN is set (reassurance only, not encryption)
   onboardingComplete: boolean; // false triggers the first-run wizard
   updatedAt: number;

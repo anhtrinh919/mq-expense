@@ -171,6 +171,13 @@ export default function ProfilePage() {
             <button className="btn btn-ghost" onClick={addCode}>+ Add country</button>
           </div>
           <p className="section-hint tertiary">Each receipt is tagged with one of these; the account code is what appears on the expense line.</p>
+          <Field label="Default for new receipts">
+            <select className="input" value={profile.preferredCountry || ""} onChange={(e) => patch({ preferredCountry: e.target.value })}>
+              <option value="">First in the list</option>
+              {codes.filter((c) => c.country.trim()).map((c) => <option key={c.id} value={c.country}>{c.country} · {c.accountCode}</option>)}
+            </select>
+          </Field>
+          <p className="section-hint tertiary">Every capture starts pre-filled with this country — change it per receipt as needed.</p>
           <div className="codes-list">
             {codes.map((c) => (
               <div className="code-row" key={c.id}>

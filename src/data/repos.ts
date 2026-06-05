@@ -21,6 +21,7 @@ export function emptyProfile(): Profile {
     currencyMarkupPct: 3,
     baseCurrency: "VND",
     homeCountry: "",
+    preferredCountry: "",
     pinHash: null,
     onboardingComplete: false,
     updatedAt: 0,

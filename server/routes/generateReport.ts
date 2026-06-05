@@ -81,3 +81,45 @@ generateReportRouter.post("/generate-report", async (req, res) => {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
 });
+
+// Lightweight Excel-only export of a (possibly filtered) expense selection — the same
+// formatted ledger the full report produces, but with no invoice and no PDF step. Pure
+// openpyxl, so it works even where LibreOffice isn't installed.
+interface XlsxBody {
+  baseCurrency?: string;
+  periodLabel?: string;
+  expenses?: Array<{ date?: string; description?: string; amountVND?: number; accountCode?: string }>;
+}
+
+generateReportRouter.post("/export-expenses-xlsx", async (req, res) => {
+  const body = req.body as XlsxBody;
+  if (!Array.isArray(body.expenses) || body.expenses.length === 0) {
+    return res.status(422).json({ error: "no expenses to export" });
+  }
+  const dir = await mkdtemp(join(tmpdir(), "mqx-xlsx-"));
+  try {
+    const job = {
+      mode: "xlsx",
+      periodLabel: body.periodLabel ?? "",
+      baseCurrency: (body.baseCurrency ?? "VND").toUpperCase(),
+      expenses: body.expenses,
+      outDir: dir,
+    };
+    const jobPath = join(dir, "job.json");
+    await writeFile(jobPath, JSON.stringify(job));
+    const r = await run(PYTHON, [join(PYTHON_DIR, "generate_report.py"), jobPath], { timeoutMs: 60_000 });
+    if (r.code !== 0) {
+      return res.status(500).json({ error: "excel export failed", detail: r.stderr.slice(-500) });
+    }
+    const out = JSON.parse(r.stdout.trim().split("\n").pop()!) as { expenseXlsx: string };
+    const xlsx = await readFile(out.expenseXlsx);
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.status(200).json({
+      expenseXlsx: { filename: `expenses-${stamp}.xlsx`, dataBase64: xlsx.toString("base64") },
+    });
+  } catch (e) {
+    res.status(500).json({ error: "excel export failed", detail: String(e).slice(-300) });
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+});
