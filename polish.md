@@ -2,6 +2,10 @@
 
 Living tracker for small UI/UX fixes outside the phase roadmap. Newest batch at top. `[ ]` open · `[x]` shipped to production.
 
+## 2026-06-05 (batch 4)
+
+- [x] **Installable web app (PWA)** — added a web manifest, MQ monogram icons, iOS/Apple meta tags, and a conservative service worker (network-first navigations, cache-first hashed bundles, API never cached) so the app can be installed from Chrome/Edge ("Install") and Safari/iOS ("Add to Home Screen") and opens standalone. Service worker served `no-cache` so updates land promptly.
+
 ## 2026-06-05 (batch 3)
 
 - [x] **Stale app after a deploy** — browsers cached `index.html`, so after an update the old shell pointed at JS files that no longer existed ("works in incognito" / "couldn't reach server"). Server now sends `no-cache` on `index.html` and long-lived immutable caching on the hashed bundles, so updates load cleanly without a hard refresh.

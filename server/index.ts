@@ -48,7 +48,10 @@ if (existsSync(distDir)) {
   app.use(
     express.static(distDir, {
       setHeaders: (res, filePath) => {
-        if (filePath.endsWith("index.html")) res.setHeader("Cache-Control", "no-cache");
+        // index.html and the service worker must always revalidate so updates land promptly.
+        if (filePath.endsWith("index.html") || filePath.endsWith("sw.js")) {
+          res.setHeader("Cache-Control", "no-cache");
+        }
       },
     }),
   );
