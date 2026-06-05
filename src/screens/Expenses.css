@@ -1,6 +1,9 @@
 .expenses {
   max-width: var(--maxw);
 }
+/* Prominent capture CTA above the filters — mobile only (desktop has it in the header). */
+.exp-cap-cta { display: none; }
+
 .filter-bar {
   display: flex;
   align-items: flex-end;
@@ -137,4 +140,13 @@
   .exp-desc { grid-column: 1 / -1; }
   .edit-grid { grid-template-columns: 1fr; }
   .filt-in { width: 130px; }
+  .exp-head-cap { display: none; }
+  .exp-cap-cta {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    padding: 14px;
+    font-size: 15px;
+    margin-bottom: var(--space-4);
+  }
 }

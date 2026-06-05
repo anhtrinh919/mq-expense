@@ -161,6 +161,7 @@
   .hist-row { grid-template-columns: 1fr auto; gap: 4px var(--space-3); }
   .hist-row .num.ta-r, .hist-row .tertiary { grid-column: 1; }
   .create-cfg .field, .cfg-inv { width: 100%; }
+  .cfg-arrow { display: none; }
   .cl-row { grid-template-columns: 24px 1fr auto; }
   .cl-cc, .cl-orig { display: none; }
 }

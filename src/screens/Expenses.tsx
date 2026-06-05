@@ -57,10 +57,12 @@ export default function Expenses() {
         right={
           <>
             <button className="btn" onClick={exportCsv} disabled={rows.length === 0}>Export CSV</button>
-            <Link to="/capture" className="btn btn-primary">+ Capture</Link>
+            <Link to="/capture" className="btn btn-primary exp-head-cap">+ Capture</Link>
           </>
         }
       />
+
+      <Link to="/capture" className="btn btn-primary exp-cap-cta">+ Capture a receipt</Link>
 
       <div className="filter-bar">
         <label className="filt"><span className="filt-k">From</span><input className="input filt-in" type="date" value={filter.start ?? ""} onChange={(e) => setFilter((f) => ({ ...f, start: e.target.value || undefined }))} /></label>

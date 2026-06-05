@@ -48,6 +48,7 @@ export default function Capture() {
   const [doneCount, setDoneCount] = useState(0);
   const [restored, setRestored] = useState(false);
   const [rateErrs, setRateErrs] = useState<Record<string, string>>({});
+  const [srcOpen, setSrcOpen] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const galleryInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
@@ -218,6 +219,12 @@ export default function Capture() {
     });
   }
 
+  // Skip = set this receipt aside and move on WITHOUT deleting it. Wraps around so you
+  // always cycle back to anything you skipped (and the progress bars below jump too).
+  function skipCurrent() {
+    setIdx((i) => (queue.length ? (i + 1) % queue.length : 0));
+  }
+
   async function saveCurrent() {
     if (!current || !savableOf(current)) return;
     const vndAmt = vndFor(current)!;
@@ -267,9 +274,23 @@ export default function Capture() {
           <h2 className="serif">{doneCount > 0 ? "Add more receipts" : "Drop receipts here"}</h2>
           <p className="muted">PDF or any image · several files at once is fine</p>
           <div className="dz-ctas">
-            <button className="btn btn-primary" onClick={() => fileInput.current?.click()}>Choose files</button>
-            {isTouch && <button className="btn cap-camera" onClick={() => galleryInput.current?.click()}>🖼️ Photos</button>}
-            {isTouch && <button className="btn cap-camera" onClick={() => cameraInput.current?.click()}>📷 Take photo</button>}
+            {isTouch ? (
+              <div className="cap-src">
+                <button className="btn btn-primary cap-src-btn" aria-haspopup="menu" aria-expanded={srcOpen} onClick={() => setSrcOpen((o) => !o)}>+ Add receipts ▾</button>
+                {srcOpen && (
+                  <>
+                    <div className="cap-src-backdrop" onClick={() => setSrcOpen(false)} />
+                    <div className="cap-src-menu" role="menu">
+                      <button role="menuitem" onClick={() => { setSrcOpen(false); galleryInput.current?.click(); }}>🖼️ From gallery</button>
+                      <button role="menuitem" onClick={() => { setSrcOpen(false); cameraInput.current?.click(); }}>📷 Take a photo</button>
+                      <button role="menuitem" onClick={() => { setSrcOpen(false); fileInput.current?.click(); }}>📄 From files</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <button className="btn btn-primary" onClick={() => fileInput.current?.click()}>Choose files</button>
+            )}
           </div>
           <input ref={fileInput} type="file" accept={ACCEPT} multiple hidden onChange={(e) => e.target.files && addFiles(e.target.files)} />
           <input ref={galleryInput} type="file" accept="image/*" multiple hidden onChange={(e) => e.target.files && addFiles(e.target.files)} />
@@ -358,7 +379,8 @@ export default function Capture() {
         </div>
         <div className="rev-actions">
           <button className="btn btn-ghost" onClick={() => setView("reviewall")}>Review all ({queue.length})</button>
-          <button className="btn btn-ghost" onClick={() => current && removeItem(current.id)}>{current?.status === "error" ? "Remove" : "Skip"}</button>
+          <button className="btn btn-ghost" onClick={skipCurrent} disabled={queue.length < 2} title="Set aside — you can come back to it">Skip</button>
+          <button className="btn btn-ghost cap-del" onClick={() => current && removeItem(current.id)} title="Remove this receipt for good">🗑 Delete</button>
           <button className="btn btn-primary" disabled={!canSave} onClick={() => void saveCurrent()}>Save &amp; next ↵</button>
         </div>
       </div>

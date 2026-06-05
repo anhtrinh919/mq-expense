@@ -133,4 +133,8 @@
 }
 .banner-action {
   margin-left: auto;
+  flex-shrink: 0;
+}
+.banner-action .btn {
+  white-space: nowrap;
 }
