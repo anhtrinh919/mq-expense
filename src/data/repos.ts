@@ -78,8 +78,19 @@ export async function upsertCountryCode(c: CountryCode): Promise<void> {
   await db.countryCodes.put(c);
 }
 
+/** Record a delete so it propagates to the server and other devices. */
+async function recordTombstones(entries: Array<{ store: string; recordId: string }>): Promise<void> {
+  const now = Date.now();
+  await db.tombstones.bulkPut(
+    entries.map((e) => ({ key: `${e.store}:${e.recordId}`, store: e.store, recordId: e.recordId, deletedAt: now })),
+  );
+}
+
 export async function deleteCountryCode(id: string): Promise<void> {
-  await db.countryCodes.delete(id);
+  await db.transaction("rw", db.countryCodes, db.tombstones, async () => {
+    await db.countryCodes.delete(id);
+    await recordTombstones([{ store: "countryCodes", recordId: id }]);
+  });
 }
 
 export function newCountryCode(sortOrder: number): CountryCode {
@@ -148,10 +159,14 @@ export async function updateExpense(e: Expense): Promise<void> {
 }
 
 export async function deleteExpense(id: string): Promise<void> {
-  await db.transaction("rw", db.expenses, db.images, async () => {
-    const imgs = await db.images.where("expenseId").equals(id).primaryKeys();
-    await db.images.bulkDelete(imgs as string[]);
+  await db.transaction("rw", db.expenses, db.images, db.tombstones, async () => {
+    const imgs = (await db.images.where("expenseId").equals(id).primaryKeys()) as string[];
+    await db.images.bulkDelete(imgs);
     await db.expenses.delete(id);
+    await recordTombstones([
+      { store: "expenses", recordId: id },
+      ...imgs.map((iid) => ({ store: "images", recordId: iid })),
+    ]);
   });
 }
 
@@ -195,7 +210,7 @@ export async function markReportPaid(id: string): Promise<void> {
 
 /** Deletes a not-yet-paid report and returns its expenses to the unsubmitted pool. */
 export async function deleteReport(id: string): Promise<void> {
-  await db.transaction("rw", db.reports, db.expenses, async () => {
+  await db.transaction("rw", db.reports, db.expenses, db.tombstones, async () => {
     const r = await db.reports.get(id);
     if (!r || r.status === "paid") return;
     for (const eid of r.expenseIds) {
@@ -205,5 +220,6 @@ export async function deleteReport(id: string): Promise<void> {
       }
     }
     await db.reports.delete(id);
+    await recordTombstones([{ store: "reports", recordId: id }]);
   });
 }

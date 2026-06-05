@@ -1,5 +1,28 @@
-// Local-first data model. Everything here lives in the browser (IndexedDB via Dexie).
-// The server persists none of it.
+// Local-first data model. The browser's IndexedDB (via Dexie) is the working store.
+// Phase 3: synced records also live encrypted on the server (per account) for cross-device
+// sync. Every synced record carries an `updatedAt` (stamped by a Dexie hook) used for
+// last-write-wins; deletes are recorded as tombstones so removals propagate.
+
+/** Local account/session + sync cursors. Singleton keyed "account". */
+export interface AccountState {
+  id: "account";
+  accountId: string | null;
+  email: string | null;
+  name: string | null;
+  role: "manager" | "peer" | null;
+  sessionToken: string | null;
+  pullCursor: number; // server watermark for incremental pull
+  pushHigh: number; // highest local updatedAt already pushed
+  updatedAt: number;
+}
+
+/** Tombstone for a deleted synced record, so the delete reaches the server + other devices. */
+export interface Tombstone {
+  key: string; // `${store}:${recordId}`
+  store: string;
+  recordId: string;
+  deletedAt: number;
+}
 
 export interface Submitter {
   name: string;
@@ -44,6 +67,7 @@ export interface CountryCode {
   country: string; // e.g. "Vietnam"
   accountCode: string; // full label, e.g. "Vietnam: 8741-4105"
   sortOrder: number;
+  updatedAt?: number; // sync stamp (Dexie hook)
 }
 
 export type ExpenseStatus = "pending" | "submitted";
@@ -67,6 +91,7 @@ export interface Expense {
   originalImageId: string;
   bwScanId: string;
   createdAt: number;
+  updatedAt?: number; // sync stamp (Dexie hook)
 }
 
 export type ImageKind = "original" | "bwscan";
@@ -77,6 +102,7 @@ export interface StoredImage {
   kind: ImageKind;
   mimeType: string;
   blob: Blob;
+  updatedAt?: number; // sync stamp (Dexie hook)
 }
 
 // ---- Transient capture draft (in-progress queue, survives reload; never backed up) ----
@@ -120,4 +146,5 @@ export interface ExpenseReport {
   paidAt: number | null;
   combinedPdf: Blob | null;
   expenseXlsx: Blob | null;
+  updatedAt?: number; // sync stamp (Dexie hook)
 }
