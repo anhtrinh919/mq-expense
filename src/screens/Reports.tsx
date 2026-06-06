@@ -46,11 +46,12 @@ function Create({ onDone }: { onDone: () => void }) {
   const [end, setEnd] = useState(todayISO());
   const [invoiceNo, setInvoiceNo] = useState("");
   const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [expStatus, setExpStatus] = useState<"pending" | "all">("pending");
   const [state, setState] = useState<CreateState>("form");
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [result, setResult] = useState<{ report: ExpenseReport } | null>(null);
 
-  // IDs pre-selected when navigating from the Expenses screen
+  // IDs pre-selected when navigating from the Expenses screen (kept for compatibility)
   const preselectRef = useRef<Set<string> | null>(null);
   useEffect(() => {
     const raw = sessionStorage.getItem("mq:preselect");
@@ -64,8 +65,10 @@ function Create({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     getProfile().then(setProfile);
     listReports().then(setReports);
-    listExpenses({ status: "pending" }).then(setPending);
   }, [synced]);
+  useEffect(() => {
+    listExpenses({ status: expStatus === "all" ? "all" : "pending" }).then(setPending);
+  }, [synced, expStatus]);
 
   // suggested invoice number once profile + reports load
   useEffect(() => {
@@ -197,7 +200,11 @@ function Create({ onDone }: { onDone: () => void }) {
 
       <div className="create-list card">
         <div className="cl-head">
-          <span className="eyebrow">Unsubmitted in range</span>
+          <span className="eyebrow">{expStatus === "pending" ? "Unsubmitted" : "All expenses"} in range</span>
+          <div className="cl-filter">
+            <button className={`cl-ft${expStatus === "pending" ? " active" : ""}`} onClick={() => setExpStatus("pending")}>Unsubmitted</button>
+            <button className={`cl-ft${expStatus === "all" ? " active" : ""}`} onClick={() => setExpStatus("all")}>All</button>
+          </div>
           <span className="tertiary">{selected.length} of {inRange.length} selected</span>
         </div>
         {inRange.length === 0 ? (

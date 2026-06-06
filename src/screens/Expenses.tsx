@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { listExpenses, listCountryCodes, updateExpense, deleteExpense, type ExpenseFilter } from "../data/repos";
-import type { Expense, CountryCode } from "../data/types";
-import { getFx, exportExpensesXlsx, base64ToBlob, ApiError } from "../lib/api";
+import { Link } from "react-router-dom";
+import { listExpenses, listCountryCodes, updateExpense, deleteExpense, getProfile, getImageById, saveReport, listReports, type ExpenseFilter } from "../data/repos";
+import type { Expense, CountryCode, ExpenseReport } from "../data/types";
+import { getFx, exportExpensesXlsx, generateReport, blobToBase64, base64ToBlob, ApiError, type GenerateReportPayload } from "../lib/api";
 import { toVND, effectiveRate, conversionNote, rateSource } from "../lib/currency";
-import { getProfile } from "../data/repos";
-import { vnd, money, num, fmtDate } from "../lib/format";
+import { vnd, money, num, fmtDate, periodLabel, todayISO } from "../lib/format";
+import { suggestInvoiceNumber } from "../lib/invoice";
+import { makeZip } from "../lib/zip";
+import { uid } from "../data/db";
 import { PageHeader, StatusChip, EmptyState, Modal, Banner } from "../components/ui";
 import ReceiptViewer from "../components/ReceiptViewer";
 import { useSyncSignal } from "../lib/sync";
 import "./Expenses.css";
 
 export default function Expenses() {
-  const navigate = useNavigate();
   const [rows, setRows] = useState<Expense[]>([]);
   const [codes, setCodes] = useState<CountryCode[]>([]);
   const [markup, setMarkup] = useState(3);
@@ -23,6 +24,12 @@ export default function Expenses() {
   const [deleting, setDeleting] = useState<Expense | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportErr, setExportErr] = useState<string | null>(null);
+
+  // ---- inline report generation ----
+  const [genModal, setGenModal] = useState(false);
+  const [genInvoiceNo, setGenInvoiceNo] = useState("");
+  const [genState, setGenState] = useState<"idle" | "generating" | "done" | "error">("idle");
+  const [genErr, setGenErr] = useState<string | null>(null);
 
   // ---- row selection ----
   const [checked, setChecked] = useState<Record<string, boolean>>({});
@@ -80,10 +87,68 @@ export default function Expenses() {
     }
   }
 
-  // Pass selected expense IDs to the Reports tab via sessionStorage
-  function goToReport() {
-    sessionStorage.setItem("mq:preselect", JSON.stringify(selectedIds));
-    navigate("/reports");
+  async function openGenModal() {
+    setGenState("idle"); setGenErr(null); setGenModal(true);
+    try {
+      const [p, reps] = await Promise.all([getProfile(), listReports()]);
+      setGenInvoiceNo(suggestInvoiceNumber(reps, p.invoicePrefix, todayISO()));
+    } catch { /* user can type manually */ }
+  }
+
+  async function generateFromSelection() {
+    if (!genInvoiceNo.trim()) return;
+    setGenState("generating"); setGenErr(null);
+    try {
+      const profile = await getProfile();
+      const targets = sorted.filter((e) => checked[e.id]).sort((a, b) => (a.date < b.date ? -1 : 1));
+      const receipts: GenerateReportPayload["receipts"] = [];
+      for (const e of targets) {
+        const img = await getImageById(e.bwScanId);
+        if (img) receipts.push({ expenseRef: e.id, mimeType: img.mimeType, dataBase64: await blobToBase64(img.blob) });
+      }
+      const label = periodLabel(targets[0].date, targets[targets.length - 1].date);
+      const res = await generateReport({
+        profile,
+        invoiceNumber: genInvoiceNo.trim(),
+        periodLabel: label,
+        baseCurrency: profile.baseCurrency || "VND",
+        expenses: targets.map((e) => ({
+          date: e.date, description: e.description, amountVND: e.amountVND,
+          accountCode: e.accountCode, country: e.country, notes: e.notes,
+          originalAmount: e.originalAmount, originalCurrency: e.originalCurrency,
+          exchangeRate: e.exchangeRate, rateSource: e.rateSource,
+        })),
+        receipts,
+      });
+      if (!res?.combinedPdf?.dataBase64 || !res?.expenseXlsx?.dataBase64) {
+        const raw = res as unknown as Record<string, unknown>;
+        throw new Error(`Incomplete server response — ${raw?.error ?? raw?.detail ?? "no detail"}`);
+      }
+      const combinedPdf = base64ToBlob(res.combinedPdf.dataBase64, "application/pdf");
+      const expenseXlsx = base64ToBlob(res.expenseXlsx.dataBase64, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      const report: ExpenseReport = {
+        id: uid("rep_"),
+        invoiceNumber: genInvoiceNo.trim(),
+        periodStart: targets[0].date, periodEnd: targets[targets.length - 1].date,
+        periodLabel: label,
+        totalVND: targets.reduce((s, e) => s + e.amountVND, 0),
+        expenseIds: targets.map((e) => e.id),
+        status: "generated", generatedAt: Date.now(), paidAt: null,
+        combinedPdf, expenseXlsx,
+      };
+      await saveReport(report);
+      const zip = makeZip([
+        { name: res.combinedPdf.filename, data: b64bytes(res.combinedPdf.dataBase64) },
+        { name: res.expenseXlsx.filename, data: b64bytes(res.expenseXlsx.dataBase64) },
+      ]);
+      downloadBlob(zip, `${genInvoiceNo.trim()}.zip`);
+      setGenState("done");
+      clearSelection();
+      reload();
+    } catch (e) {
+      setGenErr(e instanceof ApiError ? e.message : String(e));
+      setGenState("error");
+    }
   }
 
   return (
@@ -130,7 +195,7 @@ export default function Expenses() {
         <div className="sel-bar">
           <span className="sel-count">{selectedCount} selected</span>
           <button className="btn" onClick={exportXlsx} disabled={exporting}>{exporting ? "Exporting…" : "Export Excel"}</button>
-          <button className="btn btn-primary" onClick={goToReport}>Create report →</button>
+          <button className="btn btn-primary" onClick={openGenModal}>Create report</button>
           <button className="btn btn-ghost sel-clear" onClick={clearSelection}>✕ Clear</button>
         </div>
       )}
@@ -202,6 +267,41 @@ export default function Expenses() {
             <strong>{editing?.description || deleting.description || "(no description)"}</strong>
             <div className="num muted">{money(deleting.amountVND, deleting.baseCurrency)} · {fmtDate(deleting.date)} · {deleting.country}</div>
           </div>
+        </Modal>
+      )}
+
+      {genModal && (
+        <Modal
+          eyebrow="Generate report"
+          title={`${selectedCount} expense${selectedCount !== 1 ? "s" : ""} selected`}
+          onClose={() => { setGenModal(false); setGenState("idle"); setGenErr(null); }}
+          footer={genState === "idle" || genState === "error" ? (
+            <><button className="btn" onClick={() => setGenModal(false)}>Cancel</button>
+            <button className="btn btn-primary" disabled={!genInvoiceNo.trim()} onClick={generateFromSelection}>Generate &amp; download</button></>
+          ) : genState === "done" ? (
+            <button className="btn btn-primary" onClick={() => { setGenModal(false); setGenState("idle"); }}>Done</button>
+          ) : undefined}
+        >
+          {genState === "idle" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+              <p className="muted">Total: <strong className="num">{vnd(sorted.filter((e) => checked[e.id]).reduce((s, e) => s + e.amountVND, 0))}</strong></p>
+              <label className="field">
+                <span className="field-label">Invoice number</span>
+                <input className="input mono" value={genInvoiceNo} onChange={(ev) => setGenInvoiceNo(ev.target.value)} placeholder="e.g. HBEXPENSE26-1" autoFocus />
+              </label>
+            </div>
+          )}
+          {genState === "generating" && (
+            <div className="gen-card" style={{ margin: 0 }}>
+              <p>Generating report…</p>
+              <p className="muted">Reading receipts and building PDF — this takes 20–60 s</p>
+              <div className="gen-bar"><span /></div>
+            </div>
+          )}
+          {genState === "done" && (
+            <p>Report <strong className="num">{genInvoiceNo}</strong> downloaded and saved to Report History.</p>
+          )}
+          {genState === "error" && <Banner kind="error" title="Generation failed" body={genErr ?? undefined} />}
         </Modal>
       )}
     </div>
@@ -288,4 +388,10 @@ function downloadBlob(blob: Blob, filename: string) {
   const a = document.createElement("a");
   a.href = url; a.download = filename; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function b64bytes(b64: string): Uint8Array {
+  const bin = atob(b64); const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
 }

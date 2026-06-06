@@ -232,32 +232,59 @@ def _receipt_cover_pdf(receipt_no, description, date_str):
     return buf.getvalue()
 
 
+# ── Receipt combined page (header strip + receipt image on one A4 page) ──────
+def _receipt_combined_page(receipt_no, description, date_str, img_bytes):
+    """A4 page at 150 dpi: blue header strip at top, receipt image scaled to fit below."""
+    from PIL import Image, ImageDraw
+    import io
+    W, H = 1240, 1754  # A4 at 150 dpi (same width as original cover strip)
+    HEADER_H = 160
+    page = Image.new("RGB", (W, H), (255, 255, 255))
+    d = ImageDraw.Draw(page)
+    d.rectangle([(0, 0), (W, HEADER_H)], fill=(31, 78, 121))
+    font_big = _load_font(40)
+    font_sm  = _load_font(28)
+    d.text((28, 16), f"Receipt #{receipt_no}", font=font_big, fill=(255, 255, 255))
+    if description:
+        d.text((28, 78), description[:90], font=font_sm, fill=(200, 225, 240))
+    if date_str:
+        d.text((28, 120), date_str, font=font_sm, fill=(180, 210, 230))
+    try:
+        rimg = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+        max_w, max_h = W - 60, H - HEADER_H - 60
+        rimg.thumbnail((max_w, max_h), Image.LANCZOS)
+        x = (W - rimg.width) // 2
+        y = HEADER_H + 30
+        page.paste(rimg, (x, y))
+    except Exception:
+        pass
+    buf = io.BytesIO()
+    page.save(buf, format="PDF")
+    return buf.getvalue()
+
+
 # ── Receipt merge (pdf passthrough + image -> pdf) ───────────────────────────
 def merge_receipts(receipt_files, out_path, receipt_labels=None):
     """receipt_labels: list of {receipt_no, description, date_str} parallel to receipt_files."""
     from pypdf import PdfWriter, PdfReader
-    from PIL import Image
     import io
     pages = []
     for i, fp in enumerate(receipt_files):
         fp = Path(fp)
         if not fp.exists() or fp.stat().st_size == 0:
             continue
-        # Prepend a numbered cover strip before the scan
-        if receipt_labels and i < len(receipt_labels):
-            lbl = receipt_labels[i]
-            try:
-                pages.append(_receipt_cover_pdf(lbl["receipt_no"], lbl.get("description", ""), lbl.get("date_str", "")))
-            except Exception:
-                pass
+        lbl = (receipt_labels[i] if receipt_labels and i < len(receipt_labels) else {})
+        rno  = lbl.get("receipt_no", i + 1)
+        desc = lbl.get("description", "")
+        dstr = lbl.get("date_str", "")
         try:
             if fp.suffix.lower() == ".pdf" or _looks_pdf(fp):
+                # PDF receipt: keep narrow cover strip + original PDF pages (can't embed PDF in A4 image)
+                pages.append(_receipt_cover_pdf(rno, desc, dstr))
                 pages.append(fp.read_bytes())
             else:
-                img = Image.open(fp).convert("RGB")
-                buf = io.BytesIO()
-                img.save(buf, format="PDF")
-                pages.append(buf.getvalue())
+                # Image receipt: combine header + image on one A4 page
+                pages.append(_receipt_combined_page(rno, desc, dstr, fp.read_bytes()))
         except Exception:
             continue
     if not pages:
