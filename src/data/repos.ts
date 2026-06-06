@@ -15,7 +15,7 @@ export function emptyProfile(): Profile {
     id: "profile",
     invoicePrefix: "",
     vendorId: "",
-    submitter: { name: "", email: "", jobTitle: "", phone: "", addressLine1: "", addressLine2: "", country: "" },
+    submitter: { claimCompany: "", name: "", email: "", jobTitle: "", phone: "", addressLine1: "", addressLine2: "", country: "" },
     invoiceTo: { name: "Macquarie University", address: "", email: "" },
     bank: { accountName: "", accountNumber: "", swift: "", bankName: "" },
     currencyMarkupPct: 3,

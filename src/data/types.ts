@@ -26,6 +26,7 @@ export interface Tombstone {
 }
 
 export interface Submitter {
+  claimCompany: string; // invoice header company / trading name (row above "From:")
   name: string;
   email: string;
   jobTitle: string;

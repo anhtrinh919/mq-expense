@@ -103,6 +103,7 @@ export default function ProfilePage() {
         <section className="card setup-section">
           <h3 className="section-title">Profile</h3>
           <p className="section-hint tertiary">Appears in the invoice header sent to Macquarie.</p>
+          <Field label="Claim company / trading name"><input className="input" placeholder="e.g. Bui Hong Hanh Household Business" value={profile.submitter.claimCompany ?? ""} onChange={(e) => patchSub("submitter", { claimCompany: e.target.value })} /></Field>
           <Field label="Full name"><input className={invalid(!profile.submitter.name)} value={profile.submitter.name} onChange={(e) => patchSub("submitter", { name: e.target.value })} /></Field>
           <Row>
             <Field label="Email"><input className="input" value={profile.submitter.email} onChange={(e) => patchSub("submitter", { email: e.target.value })} /></Field>

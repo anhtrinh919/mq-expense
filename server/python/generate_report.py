@@ -138,6 +138,11 @@ def generate_invoice(job, total, out_path):
         if fmt:
             ws[coord].number_format = fmt
 
+    # Claim company / trading name — bold header at top of invoice (A1:D1 merged in template)
+    claim_company = sub.get("claimCompany") or sub.get("name") or ""
+    if claim_company:
+        ws["A1"] = claim_company
+
     # From / submitter block
     setc("A4", sub.get("name"))
     setc("A5", sub.get("addressLine1"))
