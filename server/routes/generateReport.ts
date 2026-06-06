@@ -88,7 +88,7 @@ generateReportRouter.post("/generate-report", async (req, res) => {
 interface XlsxBody {
   baseCurrency?: string;
   periodLabel?: string;
-  expenses?: Array<{ date?: string; description?: string; amountVND?: number; accountCode?: string }>;
+  expenses?: Array<{ date?: string; description?: string; amountVND?: number; accountCode?: string; country?: string }>;
 }
 
 generateReportRouter.post("/export-expenses-xlsx", async (req, res) => {

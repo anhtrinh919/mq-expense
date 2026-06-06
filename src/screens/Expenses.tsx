@@ -69,7 +69,7 @@ export default function Expenses() {
       const res = await exportExpensesXlsx({
         baseCurrency: bs.size === 1 ? [...bs][0] : "VND",
         periodLabel: dates.length ? `${dates[0]} – ${dates[dates.length - 1]}` : "",
-        expenses: targets.map((e) => ({ date: e.date, description: e.description, amountVND: e.amountVND, accountCode: e.accountCode })),
+        expenses: targets.map((e) => ({ date: e.date, description: e.description, amountVND: e.amountVND, accountCode: e.accountCode, country: e.country })),
       });
       const blob = base64ToBlob(res.expenseXlsx.dataBase64, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       downloadBlob(blob, res.expenseXlsx.filename);

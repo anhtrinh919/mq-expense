@@ -89,7 +89,7 @@ export async function generateReport(payload: GenerateReportPayload): Promise<Ge
 export interface ExportXlsxPayload {
   baseCurrency: string;
   periodLabel: string;
-  expenses: Array<{ date: string; description: string; amountVND: number; accountCode: string }>;
+  expenses: Array<{ date: string; description: string; amountVND: number; accountCode: string; country?: string }>;
 }
 
 export interface ExportXlsxResult {
