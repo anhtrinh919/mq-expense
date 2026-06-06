@@ -269,11 +269,36 @@ def _receipt_combined_page(receipt_no, description, date_str, img_bytes):
     return buf.getvalue()
 
 
+# ── Render PDF receipt pages as PNG bytes via pdftoppm ───────────────────────
+def _pdf_to_image_bytes(fp, tmp_dir):
+    """Convert each page of a PDF to PNG bytes at 150 dpi. Returns list or None."""
+    import subprocess, shutil, tempfile
+    cmd = shutil.which("pdftoppm") or shutil.which("pdftocairo")
+    if not cmd:
+        return None
+    stem = Path(fp).stem
+    work = Path(tmp_dir) / f"_pdfimg_{stem}"
+    work.mkdir(exist_ok=True)
+    prefix = str(work / "page")
+    if "pdftoppm" in cmd:
+        args = [cmd, "-r", "150", "-png", str(fp), prefix]
+    else:
+        args = [cmd, "-r", "150", "-png", str(fp), prefix]
+    r = subprocess.run(args, capture_output=True, timeout=30)
+    if r.returncode != 0:
+        return None
+    imgs = sorted(work.glob("*.png"))
+    if not imgs:
+        return None
+    return [p.read_bytes() for p in imgs]
+
+
 # ── Receipt merge (pdf passthrough + image -> pdf) ───────────────────────────
 def merge_receipts(receipt_files, out_path, receipt_labels=None):
     """receipt_labels: list of {receipt_no, description, date_str} parallel to receipt_files."""
     from pypdf import PdfWriter, PdfReader
     import io
+    tmp_dir = Path(out_path).parent
     pages = []
     for i, fp in enumerate(receipt_files):
         fp = Path(fp)
@@ -285,9 +310,15 @@ def merge_receipts(receipt_files, out_path, receipt_labels=None):
         dstr = lbl.get("date_str", "")
         try:
             if fp.suffix.lower() == ".pdf" or _looks_pdf(fp):
-                # PDF receipt: keep narrow cover strip + original PDF pages (can't embed PDF in A4 image)
-                pages.append(_receipt_cover_pdf(rno, desc, dstr))
-                pages.append(fp.read_bytes())
+                # Try to render PDF pages as images for combined A4 layout
+                img_pages = _pdf_to_image_bytes(fp, tmp_dir)
+                if img_pages:
+                    for img_bytes in img_pages:
+                        pages.append(_receipt_combined_page(rno, desc, dstr, img_bytes))
+                else:
+                    # Fallback: narrow cover strip + original PDF pages
+                    pages.append(_receipt_cover_pdf(rno, desc, dstr))
+                    pages.append(fp.read_bytes())
             else:
                 # Image receipt: combine header + image on one A4 page
                 pages.append(_receipt_combined_page(rno, desc, dstr, fp.read_bytes()))
