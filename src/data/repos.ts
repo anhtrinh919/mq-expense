@@ -193,6 +193,11 @@ export async function getImageById(id: string): Promise<StoredImage | undefined>
   return db.images.get(id);
 }
 
+export async function getExpensesByIds(ids: string[]): Promise<Expense[]> {
+  const results = await Promise.all(ids.map((id) => db.expenses.get(id)));
+  return results.filter((e): e is Expense => e !== undefined);
+}
+
 // ---------- Reports ----------
 
 export async function listReports(): Promise<ExpenseReport[]> {

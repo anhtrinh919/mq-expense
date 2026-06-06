@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  getProfile, listExpenses, listReports, getImageById, saveReport, markReportPaid, deleteReport, isProfileComplete, profileGaps,
+  getProfile, listExpenses, listReports, getImageById, saveReport, markReportPaid, deleteReport, isProfileComplete, profileGaps, getExpensesByIds,
 } from "../data/repos";
 import type { Profile, Expense, ExpenseReport } from "../data/types";
 import { generateReport, blobToBase64, base64ToBlob, ApiError, type GenerateReportPayload } from "../lib/api";
@@ -228,6 +228,8 @@ function History() {
   const [reports, setReports] = useState<ExpenseReport[]>([]);
   const [paying, setPaying] = useState<ExpenseReport | null>(null);
   const [removing, setRemoving] = useState<ExpenseReport | null>(null);
+  const [reexporting, setReexporting] = useState<Record<string, boolean>>({});
+  const [reexportErr, setReexportErr] = useState<string | null>(null);
   const reload = () => listReports().then(setReports);
   useEffect(() => { reload(); }, []);
 
@@ -235,6 +237,55 @@ function History() {
     const fresh = await db.reports.get(r.id);
     const blob = which === "pdf" ? fresh?.combinedPdf : fresh?.expenseXlsx;
     if (blob) download(blob, `${r.invoiceNumber}-${which === "pdf" ? "submission.pdf" : "expenses.xlsx"}`);
+  }
+
+  async function reexport(r: ExpenseReport) {
+    setReexporting((s) => ({ ...s, [r.id]: true }));
+    setReexportErr(null);
+    try {
+      const profile = await getProfile();
+      const expenses = await getExpensesByIds(r.expenseIds);
+      if (expenses.length === 0) throw new Error("Expenses not found on this device — sync from another device first.");
+      const receipts: GenerateReportPayload["receipts"] = [];
+      for (const e of expenses) {
+        const img = await getImageById(e.bwScanId);
+        if (img) receipts.push({ expenseRef: e.id, mimeType: img.mimeType, dataBase64: await blobToBase64(img.blob) });
+      }
+      const sorted = [...expenses].sort((a, b) => (a.date < b.date ? -1 : 1));
+      const payload: GenerateReportPayload = {
+        profile,
+        invoiceNumber: r.invoiceNumber,
+        periodLabel: r.periodLabel,
+        baseCurrency: profile.baseCurrency || "VND",
+        expenses: sorted.map((e) => ({
+          date: e.date, description: e.description, amountVND: e.amountVND, accountCode: e.accountCode, country: e.country, notes: e.notes,
+          originalAmount: e.originalAmount, originalCurrency: e.originalCurrency, exchangeRate: e.exchangeRate, rateSource: e.rateSource,
+        })),
+        receipts,
+      };
+      const res = await generateReport(payload);
+      const combinedPdf = base64ToBlob(res.combinedPdf.dataBase64, "application/pdf");
+      const expenseXlsx = base64ToBlob(res.expenseXlsx.dataBase64, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      // Save as a new entry so history accumulates; expenses keep their current status unchanged.
+      const newRep: ExpenseReport = {
+        id: uid("rep_"),
+        invoiceNumber: r.invoiceNumber,
+        periodStart: r.periodStart, periodEnd: r.periodEnd, periodLabel: r.periodLabel,
+        totalVND: r.totalVND, expenseIds: r.expenseIds, status: "generated",
+        generatedAt: Date.now(), paidAt: null, combinedPdf, expenseXlsx,
+      };
+      await db.reports.put(newRep);
+      const zip = makeZip([
+        { name: res.combinedPdf.filename, data: b64bytes(res.combinedPdf.dataBase64) },
+        { name: res.expenseXlsx.filename, data: b64bytes(res.expenseXlsx.dataBase64) },
+      ]);
+      download(zip, `${r.invoiceNumber}.zip`);
+      reload();
+    } catch (e) {
+      setReexportErr(e instanceof ApiError ? e.message : String(e));
+    } finally {
+      setReexporting((s) => { const n = { ...s }; delete n[r.id]; return n; });
+    }
   }
 
   if (reports.length === 0) {
@@ -251,6 +302,7 @@ function History() {
         <Stat k="Awaiting payment" v={String(awaiting.length)} sub={vnd(awaiting.reduce((s, r) => s + r.totalVND, 0))} />
         <Stat k="Paid" v={String(paid.length)} sub={vnd(paid.reduce((s, r) => s + r.totalVND, 0))} />
       </div>
+      {reexportErr && <Banner kind="error" title="Re-export failed" body={reexportErr} />}
       <div className="hist-table card">
         <div className="hist-head"><span>Period</span><span>Invoice #</span><span className="ta-r">Total VND</span><span>Generated</span><span>Status</span><span /></div>
         {reports.map((r) => (
@@ -263,6 +315,7 @@ function History() {
             <span className="hist-act">
               <button className="btn btn-ghost ico" title="Re-download PDF" onClick={() => redownload(r, "pdf")}>PDF</button>
               <button className="btn btn-ghost ico" title="Re-download Excel" onClick={() => redownload(r, "xlsx")}>XLS</button>
+              <button className="btn btn-ghost ico" title="Re-generate report" disabled={!!reexporting[r.id]} onClick={() => reexport(r)}>{reexporting[r.id] ? "…" : "↺"}</button>
               {r.status === "generated" && <button className="btn btn-ghost ico" title="Mark paid" onClick={() => setPaying(r)}>✓</button>}
               {r.status === "generated" && <button className="btn btn-ghost ico" title="Delete (returns expenses)" onClick={() => setRemoving(r)}>✕</button>}
             </span>
