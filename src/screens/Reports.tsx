@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
   getProfile, listExpenses, listReports, getImageById, saveReport, markReportPaid, deleteReport, isProfileComplete, profileGaps, getExpensesByIds,
@@ -94,6 +94,14 @@ function Create({ onDone }: { onDone: () => void }) {
 
   const selected = inRange.filter((e) => checked[e.id]);
   const total = selected.reduce((s, e) => s + e.amountVND, 0);
+  const allChecked = inRange.length > 0 && inRange.every((e) => checked[e.id]);
+  const someChecked = !allChecked && inRange.some((e) => checked[e.id]);
+  const selectAllRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (selectAllRef.current) selectAllRef.current.indeterminate = someChecked; }, [someChecked]);
+  const toggleAll = useCallback(() => {
+    const next = !allChecked;
+    setChecked(Object.fromEntries(inRange.map((e) => [e.id, next])));
+  }, [allChecked, inRange]);
   const gaps = profile ? profileGaps(profile) : [];
   const complete = profile ? isProfileComplete(profile) : false;
   const canGenerate = complete && selected.length > 0 && !!invoiceNo.trim();
@@ -200,7 +208,10 @@ function Create({ onDone }: { onDone: () => void }) {
 
       <div className="create-list card">
         <div className="cl-head">
-          <span className="eyebrow">{expStatus === "pending" ? "Unsubmitted" : "All expenses"} in range</span>
+          <label className="cl-hd-check">
+            <input type="checkbox" ref={selectAllRef} checked={allChecked} onChange={toggleAll} disabled={inRange.length === 0} />
+            <span className="eyebrow">{expStatus === "pending" ? "Unsubmitted" : "All"} expenses in range</span>
+          </label>
           <div className="cl-filter">
             <button className={`cl-ft${expStatus === "pending" ? " active" : ""}`} onClick={() => setExpStatus("pending")}>Unsubmitted</button>
             <button className={`cl-ft${expStatus === "all" ? " active" : ""}`} onClick={() => setExpStatus("all")}>All</button>

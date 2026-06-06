@@ -52,6 +52,7 @@
   border-bottom: 1px solid var(--border-soft);
 }
 .cl-empty { padding: var(--space-6); font-size: 13px; }
+.cl-hd-check { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; }
 .cl-filter { display: inline-flex; gap: 3px; }
 .cl-ft { font-size: 11px; padding: 3px 9px; border-radius: var(--radius-sm); border: 1px solid var(--border-default); background: none; cursor: pointer; color: var(--text-secondary); font-weight: 500; }
 .cl-ft.active { background: var(--accent); color: var(--text-inverse); border-color: var(--accent); }
