@@ -52,11 +52,16 @@ def generate_expense_xlsx(rows, out_path, period_label, base_currency="VND"):
             return d
 
     sorted_rows = sorted(rows, key=lambda x: x.get("date", ""))
-    excel_row, receipt_no, subtotals = 2, 1, {}
+    excel_row, receipt_no = 2, 1
+    subtotals = {}   # acc -> total
+    acc_country = {}  # acc -> country name (for subtotal labels)
     for r in sorted_rows:
         acc = r.get("accountCode", "")
+        country = r.get("country", "")
         amt = int(round(float(r.get("amountVND", 0) or 0)))
         subtotals[acc] = subtotals.get(acc, 0) + amt
+        if acc and country and acc not in acc_country:
+            acc_country[acc] = country
         fill = ALT if excel_row % 2 == 0 else "FFFFFF"
         vals = [receipt_no, parse_date(r.get("date", "")), r.get("description", ""), acc, amt]
         for c, v in enumerate(vals, 1):
@@ -75,8 +80,10 @@ def generate_expense_xlsx(rows, out_path, period_label, base_currency="VND"):
         receipt_no += 1
 
     for acc in sorted(subtotals):
+        country_name = acc_country.get(acc, "")
+        label = f"Subtotal - {acc}" + (f" - {country_name}" if country_name else "")
         ws.merge_cells(f"A{excel_row}:D{excel_row}")
-        lbl = ws.cell(row=excel_row, column=1, value=f"Subtotal - {acc}")
+        lbl = ws.cell(row=excel_row, column=1, value=label)
         lbl.font = Font(name="Arial", bold=True, size=10)
         lbl.fill = PatternFill("solid", fgColor=TOTAL_BG)
         lbl.alignment = Alignment(horizontal="right", vertical="center")
@@ -186,16 +193,63 @@ def xlsx_to_pdf(xlsx_path, out_dir):
     return pdf
 
 
+# ── Receipt cover page (numbered label before each scan) ────────────────────
+def _load_font(size):
+    from PIL import ImageFont
+    candidates = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+        "/System/Library/Fonts/Arial.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            try:
+                return ImageFont.truetype(p, size)
+            except Exception:
+                continue
+    return ImageFont.load_default()
+
+
+def _receipt_cover_pdf(receipt_no, description, date_str):
+    """A narrow header-strip PDF page printed before each receipt scan."""
+    from PIL import Image, ImageDraw
+    import io
+    W, H = 1240, 140
+    img = Image.new("RGB", (W, H), (255, 255, 255))
+    d = ImageDraw.Draw(img)
+    d.rectangle([(0, 0), (W, H)], fill=(31, 78, 121))
+    font_big = _load_font(36)
+    font_sm  = _load_font(26)
+    d.text((24, 16), f"Receipt #{receipt_no}", font=font_big, fill=(255, 255, 255))
+    if description:
+        d.text((24, 66), description[:90], font=font_sm, fill=(200, 225, 240))
+    if date_str:
+        d.text((24, 104), date_str, font=font_sm, fill=(180, 210, 230))
+    buf = io.BytesIO()
+    img.save(buf, format="PDF")
+    return buf.getvalue()
+
+
 # ── Receipt merge (pdf passthrough + image -> pdf) ───────────────────────────
-def merge_receipts(receipt_files, out_path):
+def merge_receipts(receipt_files, out_path, receipt_labels=None):
+    """receipt_labels: list of {receipt_no, description, date_str} parallel to receipt_files."""
     from pypdf import PdfWriter, PdfReader
     from PIL import Image
     import io
     pages = []
-    for fp in receipt_files:
+    for i, fp in enumerate(receipt_files):
         fp = Path(fp)
         if not fp.exists() or fp.stat().st_size == 0:
             continue
+        # Prepend a numbered cover strip before the scan
+        if receipt_labels and i < len(receipt_labels):
+            lbl = receipt_labels[i]
+            try:
+                pages.append(_receipt_cover_pdf(lbl["receipt_no"], lbl.get("description", ""), lbl.get("date_str", "")))
+            except Exception:
+                pass
         try:
             if fp.suffix.lower() == ".pdf" or _looks_pdf(fp):
                 pages.append(fp.read_bytes())
@@ -256,7 +310,14 @@ def main():
 
     invoice_pdf = xlsx_to_pdf(invoice_xlsx, out)
     expense_pdf = xlsx_to_pdf(expense_xlsx, out)
-    receipts_pdf = merge_receipts(job.get("receiptFiles", []), out / "receipts.pdf")
+
+    # Build cover-page labels matching receiptFiles order (date-sorted, same as Excel rows).
+    sorted_expenses = sorted(expenses, key=lambda x: x.get("date", ""))
+    receipt_labels = [
+        {"receipt_no": i + 1, "description": r.get("description", ""), "date_str": r.get("date", "")}
+        for i, r in enumerate(sorted_expenses)
+    ]
+    receipts_pdf = merge_receipts(job.get("receiptFiles", []), out / "receipts.pdf", receipt_labels)
 
     combined = combine(invoice_pdf, expense_pdf, receipts_pdf, out / "combined.pdf")
     print(json.dumps({"combinedPdf": str(combined), "expenseXlsx": str(expense_xlsx)}))

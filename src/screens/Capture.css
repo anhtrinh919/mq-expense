@@ -299,6 +299,39 @@
   margin-top: var(--space-5);
   font-size: 13px;
 }
+
+/* ---- MRD (Missing Receipt Declaration) ---- */
+.mrd-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.mrd-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 560px;
+}
+.mrd-cert {
+  font-size: 12px;
+  font-style: italic;
+  padding: var(--space-3);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-md);
+  line-height: 1.5;
+}
+.mrd-signee {
+  font-size: 12px;
+}
+.mrd-foot {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  padding-top: var(--space-2);
+}
 /* Big, thumb-reachable save button at the bottom of the inspector — mobile only.
    On desktop the header "Save & next" button is used instead. */
 .cap-save-mobile { display: none; }

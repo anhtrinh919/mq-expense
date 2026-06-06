@@ -24,11 +24,11 @@ async function addExpense(date: string, country = "Vietnam") {
 describe("repos", () => {
   beforeEach(clearAll);
 
-  it("seeds 5 SEA country codes only when empty", async () => {
+  it("seeds SEA country codes only when empty", async () => {
     expect(await seedCountryCodesIfEmpty()).toBe(true);
-    expect((await listCountryCodes()).length).toBe(5);
+    expect((await listCountryCodes()).length).toBe(9);
     expect(await seedCountryCodesIfEmpty()).toBe(false); // no double-seed
-    expect((await listCountryCodes()).length).toBe(5);
+    expect((await listCountryCodes()).length).toBe(9);
   });
 
   it("saves and reloads the profile singleton incl. base currency + onboarding fields", async () => {

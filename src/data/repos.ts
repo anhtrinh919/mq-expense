@@ -76,7 +76,15 @@ export async function seedCountryCodesIfEmpty(): Promise<boolean> {
 
 export async function listCountryCodes(): Promise<CountryCode[]> {
   const all = await db.countryCodes.toArray();
-  return all.sort((a, b) => a.sortOrder - b.sortOrder);
+  // Deduplicate by country name — can accumulate when two devices both seed and then sync.
+  const seen = new Set<string>();
+  const unique = all.filter((c) => {
+    const key = c.country.trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return unique.sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
 export async function upsertCountryCode(c: CountryCode): Promise<void> {

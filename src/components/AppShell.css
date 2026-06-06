@@ -29,6 +29,7 @@
   height: 26px;
   border-radius: var(--radius-sm);
   background: var(--accent);
+  flex: 0 0 auto;
 }
 .brand-name {
   font-family: var(--font-display), serif;
@@ -78,34 +79,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-}
-.local-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-}
-.local-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  font-weight: 600;
-  color: var(--text-tertiary);
-}
-.local-head .dot,
-.account-slot .avatar {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-.local-desc {
-  margin-top: 6px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.35;
 }
 .account-slot {
   display: flex;
@@ -169,62 +142,121 @@
   padding: var(--space-8) var(--space-10) var(--space-12);
 }
 
-/* ---------- mobile bottom nav ---------- */
-.bottom-nav {
-  display: none;
-}
+/* ---------- mobile top bar + drawer (hidden on desktop) ---------- */
+.mobile-topbar { display: none; }
+.drawer        { display: none; }
+.drawer-backdrop { display: none; }
 
 @media (max-width: 860px) {
   .shell {
     flex-direction: column;
   }
+
+  /* Hide the static desktop sidebar */
   .sidebar {
     display: none;
   }
-  .main {
-    padding: var(--space-5) var(--space-4) calc(72px + var(--space-5));
-  }
-  .bottom-nav {
+
+  /* Top bar */
+  .mobile-topbar {
     display: flex;
     align-items: center;
-    justify-content: space-around;
-    position: fixed;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    height: 56px;
+    padding: 0 var(--space-4);
+    background: var(--bg-subtle);
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .brand-mobile {
+    padding: 0;
+  }
+
+  /* Hamburger button */
+  .hamburger {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-primary);
+  }
+  .hamburger:hover {
+    background: var(--bg-muted);
+  }
+  /* Three-line icon drawn with box-shadow */
+  .ham-icon,
+  .ham-icon::before,
+  .ham-icon::after {
+    display: block;
+    width: 20px;
+    height: 2px;
+    border-radius: 2px;
+    background: currentColor;
+    transition: transform 200ms ease, opacity 200ms ease;
+  }
+  .ham-icon {
+    position: relative;
+  }
+  .ham-icon::before,
+  .ham-icon::after {
+    content: "";
+    position: absolute;
     left: 0;
-    right: 0;
-    bottom: 0;
-    height: 64px;
-    padding-bottom: env(safe-area-inset-bottom);
-    background: var(--bg-surface);
-    border-top: 1px solid var(--border-soft);
-    z-index: 40;
   }
-  .bottom-nav .bn {
-    flex: 1;
+  .ham-icon::before { top: -6px; }
+  .ham-icon::after  { top:  6px; }
+  /* X when open */
+  .ham-icon.open { background: transparent; }
+  .ham-icon.open::before { transform: translateY(6px) rotate(45deg); }
+  .ham-icon.open::after  { transform: translateY(-6px) rotate(-45deg); }
+
+  /* Backdrop */
+  .drawer-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(0, 0, 0, 0.35);
+  }
+
+  /* Slide-in drawer (same layout as the desktop sidebar) */
+  .drawer {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    text-align: center;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-tertiary);
+    flex-direction: column;
+    justify-content: space-between;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(300px, 85vw);
+    z-index: 60;
+    padding: var(--space-5) var(--space-4);
+    background: var(--bg-subtle);
+    border-right: 1px solid var(--border-soft);
+    transform: translateX(-100%);
+    transition: transform 220ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    overflow-y: auto;
   }
-  .bottom-nav .bn.active {
-    color: var(--accent);
-    font-weight: 600;
+  .drawer.drawer-open {
+    transform: translateX(0);
   }
-  .bottom-nav .fab {
-    flex: 0 0 auto;
-    width: 52px;
-    height: 52px;
-    margin-top: -18px;
-    border-radius: 50%;
-    background: var(--accent);
-    color: var(--text-inverse);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 26px;
-    box-shadow: 0 6px 16px rgba(61, 90, 58, 0.35);
+  /* Hide kbd shortcuts in the drawer — not useful on mobile */
+  .drawer .kbd {
+    display: none;
+  }
+  .drawer .nav-item {
+    height: 46px;
+    font-size: 15px;
+  }
+
+  .main {
+    padding: var(--space-5) var(--space-4) var(--space-8);
   }
 }

@@ -6,6 +6,7 @@ import { healthRouter } from "./routes/health.ts";
 import { fxRouter } from "./routes/fx.ts";
 import { processReceiptRouter } from "./routes/processReceipt.ts";
 import { generateReportRouter } from "./routes/generateReport.ts";
+import { generateMrdRouter } from "./routes/generateMrd.ts";
 import { authRouter } from "./routes/auth.ts";
 import { invitePublicRouter, inviteManagerRouter, teamRouter } from "./routes/team.ts";
 import { syncRouter } from "./routes/sync.ts";
@@ -33,6 +34,7 @@ app.use("/api", requireAuth);
 app.use("/api", fxRouter);
 app.use("/api", processReceiptRouter);
 app.use("/api", generateReportRouter);
+app.use("/api", generateMrdRouter);
 app.use("/api", inviteManagerRouter); // POST /invites (manager)
 app.use("/api", teamRouter); // roster + disable (manager)
 app.use("/api", syncRouter); // pull/push encrypted records

@@ -60,6 +60,7 @@ export interface GenerateReportPayload {
     description: string;
     amountVND: number;
     accountCode: string;
+    country: string;
     notes: string;
     originalAmount: number | null;
     originalCurrency: string | null;
@@ -110,6 +111,33 @@ export async function exportExpensesXlsx(payload: ExportXlsxPayload): Promise<Ex
 function withDetail(body: { error?: string; detail?: string }, fallback: string): string {
   const base = body?.error || fallback;
   return body?.detail ? `${base} — ${body.detail}` : base;
+}
+
+export interface GenerateMrdPayload {
+  date: string;
+  description: string;
+  vendor: string;
+  amount: string;
+  currency: string;
+  country: string;
+  accountCode: string;
+  businessReason: string;
+  userName: string;
+}
+
+export interface GenerateMrdResult {
+  mrdPdf: { filename: string; dataBase64: string };
+}
+
+export async function generateMrd(payload: GenerateMrdPayload): Promise<GenerateMrdResult> {
+  const res = await fetch("/api/generate-mrd", {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(payload),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, withDetail(body, `MRD generation failed (${res.status})`));
+  return body as GenerateMrdResult;
 }
 
 export interface HealthResult {
