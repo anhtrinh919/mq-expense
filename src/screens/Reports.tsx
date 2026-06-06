@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   getProfile, listExpenses, listReports, getImageById, saveReport, markReportPaid, deleteReport, isProfileComplete, profileGaps,
@@ -50,6 +50,16 @@ function Create({ onDone }: { onDone: () => void }) {
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [result, setResult] = useState<{ report: ExpenseReport } | null>(null);
 
+  // IDs pre-selected when navigating from the Expenses screen
+  const preselectRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const raw = sessionStorage.getItem("mq:preselect");
+    if (raw) {
+      try { preselectRef.current = new Set(JSON.parse(raw) as string[]); } catch { /* ignore */ }
+      sessionStorage.removeItem("mq:preselect");
+    }
+  }, []);
+
   const synced = useSyncSignal();
   useEffect(() => {
     getProfile().then(setProfile);
@@ -66,11 +76,15 @@ function Create({ onDone }: { onDone: () => void }) {
     () => pending.filter((e) => (!start || e.date >= start) && (!end || e.date <= end)).sort((a, b) => (a.date < b.date ? -1 : 1)),
     [pending, start, end],
   );
-  // default-check everything in range
+  // default-check everything in range; if navigated from Expenses, check only pre-selected IDs
   useEffect(() => {
     setChecked((prev) => {
+      const preselect = preselectRef.current;
       const next: Record<string, boolean> = {};
-      for (const e of inRange) next[e.id] = prev[e.id] ?? true;
+      for (const e of inRange) {
+        next[e.id] = preselect !== null ? preselect.has(e.id) : (prev[e.id] ?? true);
+      }
+      preselectRef.current = null; // consume once
       return next;
     });
   }, [inRange]);

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { listExpenses, listCountryCodes, updateExpense, deleteExpense, type ExpenseFilter } from "../data/repos";
 import type { Expense, CountryCode } from "../data/types";
 import { getFx, exportExpensesXlsx, base64ToBlob, ApiError } from "../lib/api";
@@ -12,10 +12,10 @@ import { useSyncSignal } from "../lib/sync";
 import "./Expenses.css";
 
 export default function Expenses() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<Expense[]>([]);
   const [codes, setCodes] = useState<CountryCode[]>([]);
   const [markup, setMarkup] = useState(3);
-  // Default to Unsubmitted — what still needs reporting is what the user comes here to find.
   const [filter, setFilter] = useState<ExpenseFilter>({ status: "pending" });
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "date", dir: "desc" });
   const [editing, setEditing] = useState<Expense | null>(null);
@@ -24,6 +24,20 @@ export default function Expenses() {
   const [exporting, setExporting] = useState(false);
   const [exportErr, setExportErr] = useState<string | null>(null);
 
+  // ---- row selection ----
+  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const selectedIds = useMemo(() => Object.keys(checked).filter((id) => checked[id]), [checked]);
+  const selectedCount = selectedIds.length;
+  const allChecked = rows.length > 0 && rows.every((e) => checked[e.id]);
+  const someChecked = selectedCount > 0 && !allChecked;
+
+  const toggleOne = (id: string) => setChecked((c) => ({ ...c, [id]: !c[id] }));
+  const toggleAll = () => {
+    if (allChecked) setChecked({});
+    else setChecked(Object.fromEntries(rows.map((e) => [e.id, true])));
+  };
+  const clearSelection = () => setChecked({});
+
   const synced = useSyncSignal();
   const reload = useCallback(() => { listExpenses(filter).then(setRows); }, [filter]);
   useEffect(() => { reload(); }, [reload, synced]);
@@ -31,6 +45,9 @@ export default function Expenses() {
     listCountryCodes().then(setCodes);
     getProfile().then((p) => setMarkup(p.currencyMarkupPct));
   }, []);
+
+  // Clear stale selections when filter changes
+  useEffect(() => { setChecked({}); }, [filter]);
 
   const sorted = useMemo(() => sortRows(rows, sort.key, sort.dir), [rows, sort]);
   function toggleSort(key: SortKey) {
@@ -41,18 +58,18 @@ export default function Expenses() {
   const bases = new Set(rows.map((e) => e.baseCurrency || "VND"));
   const totalLabel = bases.size === 1 ? money(total, [...bases][0]) : num(total, 0);
 
-  // Export the currently-filtered rows as the same formatted Excel ledger the Macquarie
-  // report produces (subtotals per account code + grand total) — a partial-report export.
+  // Export the selected rows (or all filtered rows if nothing selected)
   async function exportXlsx() {
-    if (rows.length === 0 || exporting) return;
+    const targets = selectedCount > 0 ? rows.filter((e) => checked[e.id]) : rows;
+    if (targets.length === 0 || exporting) return;
     setExporting(true); setExportErr(null);
     try {
-      const dates = rows.map((e) => e.date).sort();
-      const bases = new Set(rows.map((e) => e.baseCurrency || "VND"));
+      const dates = targets.map((e) => e.date).sort();
+      const bs = new Set(targets.map((e) => e.baseCurrency || "VND"));
       const res = await exportExpensesXlsx({
-        baseCurrency: bases.size === 1 ? [...bases][0] : "VND",
+        baseCurrency: bs.size === 1 ? [...bs][0] : "VND",
         periodLabel: dates.length ? `${dates[0]} – ${dates[dates.length - 1]}` : "",
-        expenses: rows.map((e) => ({ date: e.date, description: e.description, amountVND: e.amountVND, accountCode: e.accountCode })),
+        expenses: targets.map((e) => ({ date: e.date, description: e.description, amountVND: e.amountVND, accountCode: e.accountCode })),
       });
       const blob = base64ToBlob(res.expenseXlsx.dataBase64, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       downloadBlob(blob, res.expenseXlsx.filename);
@@ -63,15 +80,21 @@ export default function Expenses() {
     }
   }
 
+  // Pass selected expense IDs to the Reports tab via sessionStorage
+  function goToReport() {
+    sessionStorage.setItem("mq:preselect", JSON.stringify(selectedIds));
+    navigate("/reports");
+  }
+
   return (
     <div className="expenses">
       <PageHeader
         title="Expenses"
         subtitle="All receipts captured on this device"
         right={
-          <>
-            <button className="btn" onClick={exportXlsx} disabled={rows.length === 0 || exporting}>{exporting ? "Exporting…" : "Export Excel"}</button>
-          </>
+          <button className="btn" onClick={exportXlsx} disabled={rows.length === 0 || exporting}>
+            {exporting ? "Exporting…" : "Export Excel"}
+          </button>
         }
       />
 
@@ -102,11 +125,31 @@ export default function Expenses() {
         </div>
       </div>
 
+      {/* Selection action bar — only visible when rows are ticked */}
+      {selectedCount > 0 && (
+        <div className="sel-bar">
+          <span className="sel-count">{selectedCount} selected</span>
+          <button className="btn" onClick={exportXlsx} disabled={exporting}>{exporting ? "Exporting…" : "Export Excel"}</button>
+          <button className="btn btn-primary" onClick={goToReport}>Create report →</button>
+          <button className="btn btn-ghost sel-clear" onClick={clearSelection}>✕ Clear</button>
+        </div>
+      )}
+
       {rows.length === 0 ? (
         <EmptyState title="No expenses yet" body="Capture your first receipt — we'll read it, convert the amount to VND, and store it here." action={<Link to="/capture" className="btn btn-primary">+ Capture a receipt</Link>} />
       ) : (
         <div className="exp-table card">
           <div className="exp-head">
+            <span className="exp-chk-col">
+              <input
+                type="checkbox"
+                className="exp-chk"
+                checked={allChecked}
+                ref={(el) => { if (el) el.indeterminate = someChecked; }}
+                onChange={toggleAll}
+                aria-label="Select all"
+              />
+            </span>
             <SortTh label="Date" k="date" sort={sort} onSort={toggleSort} />
             <span>Description</span><span>Original</span><span>Rate</span>
             <SortTh label="Amount" k="amountVND" sort={sort} onSort={toggleSort} className="ta-r" />
@@ -115,7 +158,10 @@ export default function Expenses() {
             <span />
           </div>
           {sorted.map((e) => (
-            <div className="exp-row" key={e.id}>
+            <div className={`exp-row${checked[e.id] ? " exp-row-sel" : ""}`} key={e.id} onClick={() => toggleOne(e.id)}>
+              <span className="exp-chk-col" onClick={(ev) => ev.stopPropagation()}>
+                <input type="checkbox" className="exp-chk" checked={!!checked[e.id]} onChange={() => toggleOne(e.id)} aria-label="Select" />
+              </span>
               <span className="num exp-date">{fmtDate(e.date)}</span>
               <span className="exp-desc">{e.description || <em className="tertiary">(no description)</em>}</span>
               <span className="num exp-orig tertiary">{e.originalCurrency && e.originalCurrency !== (e.baseCurrency || "VND") ? `${num(e.originalAmount ?? 0)} ${e.originalCurrency}` : "—"}</span>
@@ -123,7 +169,7 @@ export default function Expenses() {
               <span className="num exp-vnd ta-r">{money(e.amountVND, e.baseCurrency)}</span>
               <span className="exp-cc tertiary">{e.country}</span>
               <span><StatusChip kind={e.status === "submitted" ? "submitted" : "pending"} /></span>
-              <span className="exp-act">
+              <span className="exp-act" onClick={(ev) => ev.stopPropagation()}>
                 <button className="btn btn-ghost ico" title="View receipt" onClick={() => setViewing(e)}>🧾</button>
                 <button className="btn btn-ghost ico" title="Edit" onClick={() => setEditing(e)}>✎</button>
                 <button className="btn btn-ghost ico" title="Delete" onClick={() => setDeleting(e)}>✕</button>
@@ -170,7 +216,7 @@ function sortRows(rows: Expense[], key: SortKey, dir: "asc" | "desc"): Expense[]
     let c = 0;
     if (key === "amountVND") c = a.amountVND - b.amountVND;
     else c = String(a[key]).localeCompare(String(b[key]));
-    if (c === 0) c = b.createdAt - a.createdAt; // stable tiebreak: newest first
+    if (c === 0) c = b.createdAt - a.createdAt;
     return c * sign;
   });
 }
