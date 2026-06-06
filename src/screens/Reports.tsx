@@ -264,6 +264,11 @@ function History() {
         receipts,
       };
       const res = await generateReport(payload);
+      if (!res?.combinedPdf?.dataBase64 || !res?.expenseXlsx?.dataBase64) {
+        const raw = res as unknown as Record<string, unknown>;
+        const hint = raw?.error ?? raw?.detail ?? "no detail";
+        throw new Error(`Report generation returned incomplete data — ${hint}. Try again or check server logs.`);
+      }
       const combinedPdf = base64ToBlob(res.combinedPdf.dataBase64, "application/pdf");
       const expenseXlsx = base64ToBlob(res.expenseXlsx.dataBase64, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       // Save as a new entry so history accumulates; expenses keep their current status unchanged.
@@ -315,7 +320,9 @@ function History() {
             <span className="hist-act">
               <button className="btn btn-ghost ico" title="Re-download PDF" onClick={() => redownload(r, "pdf")}>PDF</button>
               <button className="btn btn-ghost ico" title="Re-download Excel" onClick={() => redownload(r, "xlsx")}>XLS</button>
-              <button className="btn btn-ghost ico" title="Re-generate report" disabled={!!reexporting[r.id]} onClick={() => reexport(r)}>{reexporting[r.id] ? "…" : "↺"}</button>
+              <button className="btn hist-reexport" disabled={!!reexporting[r.id]} onClick={() => reexport(r)}>
+                {reexporting[r.id] ? "Generating…" : "Re-export"}
+              </button>
               {r.status === "generated" && <button className="btn btn-ghost ico" title="Mark paid" onClick={() => setPaying(r)}>✓</button>}
               {r.status === "generated" && <button className="btn btn-ghost ico" title="Delete (returns expenses)" onClick={() => setRemoving(r)}>✕</button>}
             </span>

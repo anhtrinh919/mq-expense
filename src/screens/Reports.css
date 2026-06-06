@@ -136,7 +136,7 @@
 .hist-table { padding: 0; overflow: hidden; }
 .hist-head, .hist-row {
   display: grid;
-  grid-template-columns: 1fr 130px 130px 120px 100px 140px;
+  grid-template-columns: 1fr 130px 130px 120px 100px auto;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-5);
@@ -152,8 +152,9 @@
 }
 .hist-row { border-top: 1px solid var(--border-soft); }
 .hist-row:hover { background: var(--bg-subtle); }
-.hist-act { display: flex; gap: 2px; justify-content: flex-end; }
+.hist-act { display: flex; gap: var(--space-2); align-items: center; justify-content: flex-end; }
 .hist-act .ico { width: auto; min-width: 28px; padding: 0 6px; font-size: 11px; font-weight: 600; }
+.hist-reexport { font-size: 12px; padding: 0 10px; height: 28px; white-space: nowrap; }
 
 @media (max-width: 860px) {
   .hist-stats { grid-template-columns: 1fr; }
