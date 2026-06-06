@@ -167,6 +167,12 @@ def generate_invoice(job, total, out_path):
     setc("B35", bank.get("swift"))
     setc("B36", bank.get("bankName"))
 
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.page_setup.paperSize = 9  # A4
+    ws.page_setup.orientation = "portrait"
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+
     wb.save(out_path)
     return out_path
 
@@ -259,7 +265,7 @@ def _receipt_combined_page(receipt_no, description, date_str, img_bytes):
     except Exception:
         pass
     buf = io.BytesIO()
-    page.save(buf, format="PDF")
+    page.save(buf, format="PDF", resolution=150)
     return buf.getvalue()
 
 
