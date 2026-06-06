@@ -51,10 +51,52 @@ PATH=/home/tuana/.local/bin:/usr/local/bin:/usr/bin:/bin
 
 ## Update workflow (every future change)
 
-1. Build, test, and commit on a feature branch; merge to `main`; `git push`.
-2. On homepc-1: `cd ~/dev/mq-expense && git pull && npm ci && npm run build && sudo systemctl restart mq-expense`.
+Run all steps in order. Each step must succeed before the next one.
+
+```bash
+# 1. On the dev Mac — finish and push the commit
+git push origin main
+
+# 2. SSH to the production host
+tailscale ssh tuana@homepc-1
+
+# 3. Pull, install, build, restart (run as tuana, sudo only for the restart)
+cd ~/dev/mq-expense
+git pull                          # confirm the expected commit SHA lands
+npm ci                            # only needed when package-lock changed; safe to always run
+npm run build                     # builds the SPA into dist/ (~1-2 s)
+sudo systemctl restart mq-expense # service comes back in < 2 s
+
+# 4. Verify the service came up
+systemctl is-active mq-expense    # must print "active"
+journalctl -u mq-expense -n 5 --no-pager   # last line: "API + app listening on …:8787"
+```
+
+Then do a quick smoke test from a separate device (or curl from the Mac):
+
+```bash
+curl -sf https://mqexpense.ta-infra.uk/api/health
+# expected: {"status":"ok","reader":"claude","store":"ok"}
+```
 
 (The DB and env file live outside the repo, so a pull/rebuild never disturbs user data or the key.)
+
+### One-liner (if you trust the build)
+
+```bash
+tailscale ssh tuana@homepc-1 "cd ~/dev/mq-expense && git pull && npm ci && npm run build && sudo systemctl restart mq-expense && sleep 2 && systemctl is-active mq-expense"
+```
+
+### If the service fails to start
+
+```bash
+journalctl -u mq-expense -n 30 --no-pager   # read the error
+# Common causes:
+#   - syntax error in a new server file  → check the tsx output
+#   - missing env var in /etc/mq-expense/mq-expense.env
+#   - port 8787 already bound (stale process) → sudo pkill -f "tsx server/index"
+sudo systemctl start mq-expense   # try again after fixing
+```
 
 ## Validation (go-live is done only when all pass)
 
