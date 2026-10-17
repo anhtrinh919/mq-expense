@@ -104,6 +104,7 @@ export default function ProfilePage() {
           <h3 className="section-title">Profile</h3>
           <p className="section-hint tertiary">Appears in the invoice header sent to Macquarie.</p>
           <Field label="Full name"><input className={invalid(!profile.submitter.name)} value={profile.submitter.name} onChange={(e) => patchSub("submitter", { name: e.target.value })} /></Field>
+          <Field label="Business name on invoice (optional)" hint="Shown at the top of your invoice. Leave empty to use your full name."><input className="input" value={profile.submitter.businessName ?? ""} onChange={(e) => patchSub("submitter", { businessName: e.target.value })} /></Field>
           <Row>
             <Field label="Email"><input className="input" value={profile.submitter.email} onChange={(e) => patchSub("submitter", { email: e.target.value })} /></Field>
             <Field label="Job title (optional)"><input className="input" value={profile.submitter.jobTitle} onChange={(e) => patchSub("submitter", { jobTitle: e.target.value })} /></Field>
@@ -198,11 +199,12 @@ export default function ProfilePage() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <label className="field">
       <span className="field-label">{label}</span>
       {children}
+      {hint && <span className="tertiary">{hint}</span>}
     </label>
   );
 }

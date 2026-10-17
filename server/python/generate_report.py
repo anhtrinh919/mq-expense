@@ -125,12 +125,19 @@ def generate_invoice(job, total, out_path):
     to = p.get("invoiceTo", {}) or {}
 
     def setc(coord, value, fmt=None):
-        if value is None or value == "":
+        # Always write, so an empty profile field gives an empty cell, never template text.
+        ws[coord] = None if value is None or value == "" else value
+        if ws[coord].value is None:
             return
-        ws[coord] = value
         if fmt:
             ws[coord].number_format = fmt
 
+    # Header: "<business name or full name><padding>Invoice", the width the template layout expects.
+    header = (sub.get("businessName") or "").strip() or (sub.get("name") or "").strip()
+    ws["A1"] = f"{header}{' ' * max(4, 143 - len(header) - len('Invoice'))}Invoice"
+    cur = job.get("baseCurrency") or "VND"
+    ws["D17"] = f"TOTAL ({cur})"
+    ws["B30"] = f"Total ({cur})"
     # From / submitter block
     setc("A4", sub.get("name"))
     setc("A5", sub.get("addressLine1"))
@@ -148,8 +155,8 @@ def generate_invoice(job, total, out_path):
     # Invoice-to block
     setc("A11", to.get("name"))
     addr_lines = [l for l in (to.get("address", "") or "").split("\n") if l.strip()]
-    for i, line in enumerate(addr_lines[:3]):
-        setc(f"A{12 + i}", line)
+    for i in range(3):
+        setc(f"A{12 + i}", addr_lines[i] if i < len(addr_lines) else None)
     setc("A15", to.get("email"))
     # Line item + total
     setc("A18", f"Expenses Reimbursement for {job.get('periodLabel', '')}")

@@ -27,6 +27,7 @@ export interface Tombstone {
 
 export interface Submitter {
   name: string;
+  businessName?: string; // invoice header; empty = use name (absent on profiles saved before round 2)
   email: string;
   jobTitle: string;
   phone: string;
