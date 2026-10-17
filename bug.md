@@ -21,13 +21,11 @@ User, 2026-10-17: trusted invite-only users on their own devices; hardening risk
 
 ## Report correctness
 
-- [high, verified] Invoice template holds Hanh's real details. Empty profile fields leave them in place, and the header cell A1 ("Bui Hong Hanh Household Business … Invoice") is never overwritten. Every peer invoice shows Hanh's business name (`server/python/generate_report.py:122-161`, `assets/expense_invoice_template.xlsx`) — found, 2026-10-17 — fold into: Report correctness
 - [high] LibreOffice runs with a shared profile; two reports at once can fail. A hung `soffice` survives Node's kill and blocks later reports (`generate_report.py:181`, `server/lib/run.ts:15`) — found, 2026-10-17 — fold into: Report correctness
 - [medium] Receipt pages can come out in a different order from the numbered sheet rows (`generate_report.py:54-61`, `src/screens/Reports.tsx:88-91`) — found, 2026-10-17 — fold into: Report correctness
 - [medium] A receipt that fails to parse (e.g. HEIC) is silently left out of the report (`generate_report.py:197-208`) — found, 2026-10-17 — fold into: Report correctness
 - [medium] Amounts are rounded to whole numbers for every currency; wrong for USD/AUD bases (`generate_report.py:58`) — found, 2026-10-17 — fold into: Report correctness
 - [medium] An expense with a null date crashes the sort (`generate_report.py:54`) — found, 2026-10-17 — fold into: Report correctness
-- [high, verified] "New report" can suggest the invoice number just used; nothing blocks a duplicate (`src/screens/Reports.tsx:61-63,151`) — found, 2026-10-17 — fold into: Report correctness
 - [medium] Dates use UTC, not Vietnam time: wrong invoice year 00:00–07:00 on 1 Jan, and today can't be picked before 07:00 (`src/lib/format.ts:209`) — found, 2026-10-17 — fold into: Report correctness
 - [medium] "Recalculate from rate" overwrites the saved capture-time rate with no confirm (`src/screens/Expenses.tsx:196-205`) — found, 2026-10-17 — fold into: Report correctness
 
@@ -38,7 +36,6 @@ User, 2026-10-17: trusted invite-only users on their own devices; hardening risk
 - [high] Sync bookmark uses device clocks; an offline or slow-clock edit can be skipped forever (`server/routes/sync.ts:39-51`, `src/lib/sync.ts:550,577`) — found, 2026-10-17 — fold into: Sync reliability
 - [high] Restored backup expenses and reports never upload, because their old timestamps sit below the push mark (`src/lib/backup.ts:740-747`) — found, 2026-10-17 — fold into: Sync reliability
 - [high] "Clear my data" offline wipes the device only; the next sync brings everything back (`src/screens/Settings.tsx:471-474`) — found, 2026-10-17 — fold into: Sync reliability
-- [high, verified in live data] Each device seeds 9 country codes with new ids, so two devices give 18. Hanh, Rizky and Omu each have 18 now (`src/main.tsx:9`) — found, 2026-10-17 — fold into: Country code cleanup
 - [medium] An older delete from another device removes a newer local edit (`src/lib/sync.ts:559-561`) — found, 2026-10-17 — fold into: Sync reliability
 - [medium] A failed "Save all" in Capture can save the same expenses twice on retry (`src/screens/Capture.tsx:239-243`) — found, 2026-10-17 — fold into: Sync reliability
 - [medium] First sync on a new device pulls the whole history in one response, images included (`server/routes/sync.ts:29-53`) — found, 2026-10-17 — fold into: Sync reliability

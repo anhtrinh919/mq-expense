@@ -4,12 +4,19 @@
 
 ## Next
 
-- Report correctness: invoice shows only the submitter's own details; exact totals; safe numbering — found, 2026-10-17
-- Country code cleanup: one copy of each country per account, on every device — found, 2026-10-17
+- Report correctness: exact totals, receipt order, report robustness — found, 2026-10-17
 - Sync reliability: no lost, revived, or leaked data across devices and accounts — found, 2026-10-17
 - Add an expense with no receipt (MQ allows no receipt under $80) — user, 2026-06-05
 
 ## Rounds
+
+### Round 2 — Own details on every invoice, one copy per country, no repeat invoice numbers
+
+Status: building
+Branch: round-2-report-and-country-fixes, from main
+Try: a peer invoice shows no Hanh data; New report suggests the next number and blocks a used one; each country shows once
+Bugs: invoice template leaks Hanh's details; country codes doubled per device; New report repeats the invoice number
+Risk: user data
 
 ### Round 1 — Codebase review: find and rank real bugs, security gaps, and dead code
 
