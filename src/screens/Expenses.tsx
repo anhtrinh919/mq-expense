@@ -5,7 +5,7 @@ import type { Expense, CountryCode } from "../data/types";
 import { getFx, exportExpensesXlsx, base64ToBlob, ApiError } from "../lib/api";
 import { toVND, effectiveRate, conversionNote, rateSource } from "../lib/currency";
 import { getProfile } from "../data/repos";
-import { vnd, money, num, fmtDate } from "../lib/format";
+import { money, num, fmtDate } from "../lib/format";
 import { PageHeader, StatusChip, EmptyState, Modal, Banner } from "../components/ui";
 import ReceiptViewer from "../components/ReceiptViewer";
 import { useSyncSignal } from "../lib/sync";
@@ -201,7 +201,7 @@ function EditModal({ expense, codes, markup, onClose, onSaved }: { expense: Expe
       const eff = effectiveRate(r.rate, markup);
       const vndAmt = toVND(e.originalAmount, r.rate, markup);
       patch({ exchangeRate: eff, amountVND: vndAmt, rateSource: rateSource(markup), notes: conversionNote(e.originalAmount, e.originalCurrency, eff, vndAmt, markup, base) });
-      setRecalcMsg(`Recalculated: ${vnd(vndAmt)}`);
+      setRecalcMsg(`Recalculated: ${money(vndAmt, base)}`);
     } catch (err) {
       setRecalcMsg(err instanceof ApiError ? err.message : "Rate unavailable");
     } finally { setBusy(false); }

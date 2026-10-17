@@ -8,7 +8,7 @@ import { generateReport, blobToBase64, base64ToBlob, ApiError, type GenerateRepo
 import { db, uid } from "../data/db";
 import { suggestInvoiceNumber, isInvoiceNumberUsed } from "../lib/invoice";
 import { makeZip } from "../lib/zip";
-import { vnd, money, fmtDate, fmtDateShort, periodLabel, todayISO } from "../lib/format";
+import { money, num, fmtDate, fmtDateShort, periodLabel, todayISO } from "../lib/format";
 import { PageHeader, StatusChip, EmptyState, Modal, Banner } from "../components/ui";
 import { useSyncSignal } from "../lib/sync";
 import "./Reports.css";
@@ -134,7 +134,7 @@ function Create({ onDone }: { onDone: () => void }) {
       <div className="gen-card card">
         <div className="eyebrow">Generating report</div>
         <h2 className="num">{invoiceNo}</h2>
-        <p className="muted">{selected.length} expenses · {vnd(total)}</p>
+        <p className="muted">{selected.length} expenses · {money(total, profile?.baseCurrency)}</p>
         <div className="gen-bar"><span /></div>
         <ul className="gen-steps muted">
           <li>Reading receipts</li><li>Converting amounts</li><li>Building combined PDF</li><li>Writing Excel ledger</li><li>Stamping invoice number</li>
@@ -180,7 +180,7 @@ function Create({ onDone }: { onDone: () => void }) {
         <label className="field cfg-inv"><span className="field-label">Invoice number</span><input className={numberUsed ? "input mono invalid" : "input mono"} value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} aria-invalid={numberUsed} aria-describedby={numberUsed ? "inv-used" : undefined} />{numberUsed && <span id="inv-used" className="field-error" role="alert">Already used by another report. Pick a new number.</span>}</label>
         <div className="cfg-sum">
           <span className="field-label">Will include</span>
-          <span className="num cfg-total">{selected.length} · {vnd(total)}</span>
+          <span className="num cfg-total">{selected.length} · {money(total, profile?.baseCurrency)}</span>
         </div>
       </div>
 
@@ -197,8 +197,8 @@ function Create({ onDone }: { onDone: () => void }) {
             <span className="num cl-date">{fmtDateShort(e.date)}</span>
             <span className="cl-desc">{e.description || "(no description)"}</span>
             <span className="tertiary cl-cc">{e.country}</span>
-            <span className="num tertiary cl-orig">{e.originalCurrency && e.originalCurrency !== "VND" ? `${e.originalAmount} ${e.originalCurrency}` : "VND"}</span>
-            <span className="num cl-vnd">{vnd(e.amountVND)}</span>
+            <span className="num tertiary cl-orig">{e.originalCurrency && e.originalCurrency !== (e.baseCurrency || "VND") ? `${num(e.originalAmount ?? 0)} ${e.originalCurrency}` : (e.baseCurrency || "VND")}</span>
+            <span className="num cl-vnd">{money(e.amountVND, e.baseCurrency)}</span>
           </label>
         ))}
       </div>
@@ -217,8 +217,9 @@ function History() {
   const [reports, setReports] = useState<ExpenseReport[]>([]);
   const [paying, setPaying] = useState<ExpenseReport | null>(null);
   const [removing, setRemoving] = useState<ExpenseReport | null>(null);
+  const [cur, setCur] = useState("VND");
   const reload = () => listReports().then(setReports);
-  useEffect(() => { reload(); }, []);
+  useEffect(() => { reload(); getProfile().then((p) => setCur(p.baseCurrency || "VND")); }, []);
 
   async function redownload(r: ExpenseReport, which: "pdf" | "xlsx") {
     const fresh = await db.reports.get(r.id);
@@ -237,16 +238,16 @@ function History() {
     <div className="history">
       <div className="hist-stats">
         <Stat k="Total reports" v={String(reports.length)} />
-        <Stat k="Awaiting payment" v={String(awaiting.length)} sub={vnd(awaiting.reduce((s, r) => s + r.totalVND, 0))} />
-        <Stat k="Paid" v={String(paid.length)} sub={vnd(paid.reduce((s, r) => s + r.totalVND, 0))} />
+        <Stat k="Awaiting payment" v={String(awaiting.length)} sub={money(awaiting.reduce((s, r) => s + r.totalVND, 0), cur)} />
+        <Stat k="Paid" v={String(paid.length)} sub={money(paid.reduce((s, r) => s + r.totalVND, 0), cur)} />
       </div>
       <div className="hist-table card">
-        <div className="hist-head"><span>Period</span><span>Invoice #</span><span className="ta-r">Total VND</span><span>Generated</span><span>Status</span><span /></div>
+        <div className="hist-head"><span>Period</span><span>Invoice #</span><span className="ta-r">Total {cur}</span><span>Generated</span><span>Status</span><span /></div>
         {reports.map((r) => (
           <div className="hist-row" key={r.id}>
             <span className="hist-period">{r.periodLabel}</span>
             <span className="num">{r.invoiceNumber}</span>
-            <span className="num ta-r">{vnd(r.totalVND)}</span>
+            <span className="num ta-r">{money(r.totalVND, cur)}</span>
             <span className="tertiary num">{fmtDate(new Date(r.generatedAt).toISOString().slice(0, 10))}</span>
             <span><StatusChip kind={r.status === "paid" ? "paid" : "generated"} /></span>
             <span className="hist-act">
@@ -263,7 +264,7 @@ function History() {
         <Modal eyebrow="Mark report as paid" title={`Did Macquarie pay ${paying.invoiceNumber}?`} onClose={() => setPaying(null)}
           footer={<><button className="btn" onClick={() => setPaying(null)}>Not yet</button><button className="btn btn-primary" onClick={async () => { await markReportPaid(paying.id); setPaying(null); reload(); }}>Yes, mark paid</button></>}>
           <p className="muted">Marking as Paid locks the report — it can't be edited or deleted afterward.</p>
-          <div className="del-card card"><strong className="num">{paying.invoiceNumber}</strong><div className="num muted">{paying.periodLabel} · {vnd(paying.totalVND)}</div></div>
+          <div className="del-card card"><strong className="num">{paying.invoiceNumber}</strong><div className="num muted">{paying.periodLabel} · {money(paying.totalVND, cur)}</div></div>
         </Modal>
       )}
       {removing && (

@@ -1,19 +1,21 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { listExpenses, listReports } from "../data/repos";
+import { getProfile, listExpenses, listReports } from "../data/repos";
 import type { Expense, ExpenseReport } from "../data/types";
-import { vnd, fmtDateShort } from "../lib/format";
+import { money, fmtDateShort } from "../lib/format";
 import { useSyncSignal } from "../lib/sync";
 import "./Home.css";
 
 export default function Home() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [reports, setReports] = useState<ExpenseReport[]>([]);
+  const [cur, setCur] = useState("VND");
   const synced = useSyncSignal();
 
   useEffect(() => {
     listExpenses().then(setExpenses);
     listReports().then(setReports);
+    getProfile().then((p) => setCur(p.baseCurrency || "VND"));
   }, [synced]);
 
   const unsubmitted = expenses.filter((e) => e.status === "pending");
@@ -45,13 +47,13 @@ export default function Home() {
       </section>
 
       <section className="quick">
-        <StatCard k="Unsubmitted" big={String(unsubmitted.length)} sub={vnd(unsubmittedSum)} note="Capture or fix before generating" to="/expenses" />
-        <StatCard k="All expenses" big={String(expenses.length)} sub={vnd(allSum)} note="Everything on this device" to="/expenses" />
+        <StatCard k="Unsubmitted" big={String(unsubmitted.length)} sub={money(unsubmittedSum, cur)} note="Capture or fix before generating" to="/expenses" />
+        <StatCard k="All expenses" big={String(expenses.length)} sub={money(allSum, cur)} note="Everything on this device" to="/expenses" />
         <StatCard
           k="Pending payment"
           idValue
           big={lastAwaiting ? lastAwaiting.invoiceNumber : "—"}
-          sub={lastAwaiting ? vnd(awaitingSum) : "No reports awaiting"}
+          sub={lastAwaiting ? money(awaitingSum, cur) : "No reports awaiting"}
           note={awaiting.length > 1 ? `${awaiting.length} reports awaiting payment` : "Mark paid in Reports → History"}
           to="/reports"
         />
@@ -71,7 +73,7 @@ export default function Home() {
                 <span className="num recent-date">{fmtDateShort(e.date)}</span>
                 <span className="recent-desc">{e.description || "(no description)"}</span>
                 <span className="recent-cc tertiary">{e.country}</span>
-                <span className="num recent-amt">{vnd(e.amountVND)}</span>
+                <span className="num recent-amt">{money(e.amountVND, e.baseCurrency)}</span>
                 <span className={`chip chip-${e.status === "submitted" ? "submitted" : "unsubmitted"}`}>
                   {e.status === "submitted" ? "Submitted" : "Unsubmitted"}
                 </span>

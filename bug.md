@@ -53,4 +53,3 @@ User, 2026-10-17: trusted invite-only users on their own devices; hardening risk
 - [low] Runbook: relative `PYTHON_BIN`; `systemctl restart cloudflared` should be a SIGHUP; systemd unit file is not in the repo (`docs/deployment.md:45,49`) — found, 2026-10-17 — fold into: bug round
 - [low] Hanh's SSH rule targets a tag on the node "homepc-1". The live box is now node "homepc", so her access may have stopped. Check the tag in the Tailscale admin page — found, 2026-10-17 — fold into: bug round
 - [low] `CLAUDE.md` still names "homepc-1" and `tailscale ssh tuana@homepc-1`; editing it needs the user's OK — found, 2026-10-17 — fold into: bug round
-- [low] For a non-VND user, the Reports list shows "null IDR" and amounts with "₫" (`src/screens/Reports.tsx` row, `vnd()` in `src/lib/format.ts`) — found, 2026-10-17 — fold into: bug round
