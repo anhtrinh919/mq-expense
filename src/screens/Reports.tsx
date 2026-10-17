@@ -6,7 +6,7 @@ import {
 import type { Profile, Expense, ExpenseReport } from "../data/types";
 import { generateReport, blobToBase64, base64ToBlob, ApiError, type GenerateReportPayload } from "../lib/api";
 import { db, uid } from "../data/db";
-import { suggestInvoiceNumber } from "../lib/invoice";
+import { suggestInvoiceNumber, isInvoiceNumberUsed } from "../lib/invoice";
 import { makeZip } from "../lib/zip";
 import { vnd, money, fmtDate, fmtDateShort, periodLabel, todayISO } from "../lib/format";
 import { PageHeader, StatusChip, EmptyState, Modal, Banner } from "../components/ui";
@@ -79,10 +79,14 @@ function Create({ onDone }: { onDone: () => void }) {
   const total = selected.reduce((s, e) => s + e.amountVND, 0);
   const gaps = profile ? profileGaps(profile) : [];
   const complete = profile ? isProfileComplete(profile) : false;
-  const canGenerate = complete && selected.length > 0 && !!invoiceNo.trim();
+  const numberUsed = isInvoiceNumberUsed(reports, invoiceNo);
+  const canGenerate = complete && selected.length > 0 && !!invoiceNo.trim() && !numberUsed;
 
   async function generate() {
     if (!profile || !canGenerate) return;
+    // Re-check against the latest saved reports (another device may have used this number since).
+    const latest = await listReports();
+    if (isInvoiceNumberUsed(latest, invoiceNo)) { setReports(latest); return; }
     setState("generating"); setErrMsg(null);
     try {
       const receipts: GenerateReportPayload["receipts"] = [];
@@ -148,7 +152,7 @@ function Create({ onDone }: { onDone: () => void }) {
         <p className="muted">Invoice <span className="num">{result.report.invoiceNumber}</span> · {result.report.periodLabel} · {money(result.report.totalVND, profile?.baseCurrency)}</p>
         <p className="tertiary">One zip ({result.report.invoiceNumber}.zip) has downloaded — it holds the PDF and the Excel. Email it to your Macquarie Finance contact.</p>
         <div className="gen-foot">
-          <button className="btn" onClick={() => { setState("form"); setResult(null); setInvoiceNo(""); listReports().then(setReports); listExpenses({ status: "pending" }).then(setPending); }}>New report</button>
+          <button className="btn" onClick={() => { setState("form"); setResult(null); listReports().then((r) => { setReports(r); setInvoiceNo(suggestInvoiceNumber(r, profile?.invoicePrefix ?? "", todayISO())); }); listExpenses({ status: "pending" }).then(setPending); }}>New report</button>
           <button className="btn btn-primary" onClick={onDone}>Go to History</button>
         </div>
       </div>
@@ -174,7 +178,7 @@ function Create({ onDone }: { onDone: () => void }) {
         <label className="field"><span className="field-label">Start date</span><input className="input" type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
         <span className="cfg-arrow">→</span>
         <label className="field"><span className="field-label">End date</span><input className="input" type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
-        <label className="field cfg-inv"><span className="field-label">Invoice number</span><input className="input mono" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} /></label>
+        <label className="field cfg-inv"><span className="field-label">Invoice number</span><input className={numberUsed ? "input mono invalid" : "input mono"} value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} aria-invalid={numberUsed} aria-describedby={numberUsed ? "inv-used" : undefined} />{numberUsed && <span id="inv-used" className="field-error" role="alert">Already used by another report. Pick a new number.</span>}</label>
         <div className="cfg-sum">
           <span className="field-label">Will include</span>
           <span className="num cfg-total">{selected.length} · {vnd(total)}</span>

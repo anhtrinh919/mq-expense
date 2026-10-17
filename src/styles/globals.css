@@ -145,6 +145,10 @@ textarea {
   border-color: var(--status-error);
   background: var(--status-error-bg);
 }
+.field-error {
+  color: var(--status-error);
+  font-size: 13px;
+}
 textarea.input {
   height: auto;
   padding: var(--space-3);
