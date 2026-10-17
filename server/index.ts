@@ -38,7 +38,7 @@ app.use("/api", teamRouter); // roster + disable (manager)
 app.use("/api", syncRouter); // pull/push encrypted records
 app.use("/api", accountRouter); // clear my data
 
-// In production, serve the built SPA from dist/ on the same port (single homepc-1 process).
+// In production, serve the built SPA from dist/ on the same port (single homepc process).
 const distDir = resolve(SERVER_DIR, "..", "dist");
 if (existsSync(distDir)) {
   // Content-hashed bundles never change for a given name — cache them hard.
