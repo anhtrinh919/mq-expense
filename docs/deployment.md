@@ -4,8 +4,8 @@ Source of truth for running MQ Expense in production. Read this before any deplo
 
 ## Target
 
-- **Host:** `homepc-1` (Tailscale `100.92.37.38`) — WSL2 Ubuntu 24.04 on the always-on Windows PC. Reach it with `tailscale ssh tuana@homepc-1`.
-- **Public URL:** `https://mqexpense.ta-infra.uk` (Cloudflare Tunnel → `http://localhost:8787` on homepc-1).
+- **Host:** `homepc` (Tailscale `100.92.37.38`) — WSL2 Ubuntu 24.04 on the always-on Windows PC. Reach it with `ssh tuana@homepc`.
+- **Public URL:** `https://mqexpense.ta-infra.uk` (Cloudflare Tunnel → `http://localhost:8787` on homepc).
 - **Runtime:** Node 24, single-origin (`tsx server/index.ts` serves the built SPA from `dist/` and the API on one port).
 - **Code remote:** private GitHub repo `anhtrinh919/mq-expense`. `main` is the deployable branch.
 
@@ -14,7 +14,7 @@ Source of truth for running MQ Expense in production. Read this before any deplo
 1. **App service** — systemd unit `mq-expense.service` runs `NODE_ENV=production tsx server/index.ts` on port 8787, restart-on-failure, enabled at boot. Env (including the master key + manager seed) comes from a root-only EnvironmentFile, never from git.
 2. **Cloudflare ingress** — `mqexpense.ta-infra.uk` added as a 5th ingress hostname on the existing `ollama-local` tunnel (`~/.cloudflared/config.yml`), served by the already-running `cloudflared.service`. No new tunnel or login needed (account cert already present).
 3. **Python sidecar** — receipt deskew + report assembly run from a venv at `server/python/.venv` (Pillow, numpy, openpyxl, pypdf, opencv-python-headless, all pinned).
-4. **Receipt auto-read** — shells out to the `claude` CLI on homepc-1; degrades to manual entry if unavailable.
+4. **Receipt auto-read** — shells out to the `claude` CLI on homepc; degrades to manual entry if unavailable.
 5. **LibreOffice (`soffice`)** — system package, NOT a pip dep. The full report's xlsx→PDF step shells out to `soffice --headless`. Without it, report generation fails with "report assembly failed → LibreOffice (soffice) not found". Install once: `sudo apt-get install -y libreoffice-calc`. (The Expenses "Export Excel" path is pure openpyxl and does NOT need it.)
 
 ## Persistent state (never in git, never overwritten by a redeploy)
@@ -40,7 +40,7 @@ PATH=/home/tuana/.local/bin:/usr/local/bin:/usr/bin:/bin
 
 ## First deploy (one time)
 
-1. `git clone git@github.com:anhtrinh919/mq-expense.git ~/dev/mq-expense` on homepc-1.
+1. `git clone git@github.com:anhtrinh919/mq-expense.git ~/dev/mq-expense` on homepc.
 2. `npm ci` (compiles better-sqlite3 against Node 24).
 3. `python3 -m venv server/python/.venv && server/python/.venv/bin/pip install -r server/python/requirements.txt`. Point the server at it with `PYTHON_BIN=server/python/.venv/bin/python` (add to the env file). Also `sudo apt-get install -y libreoffice-calc` — the report's xlsx→PDF step needs `soffice`.
 4. `npm run build` → `dist/`.
@@ -52,7 +52,7 @@ PATH=/home/tuana/.local/bin:/usr/local/bin:/usr/bin:/bin
 ## Update workflow (every future change)
 
 1. Build, test, and commit on a feature branch; merge to `main`; `git push`.
-2. On homepc-1: `cd ~/dev/mq-expense && git pull && npm ci && npm run build && sudo systemctl restart mq-expense`.
+2. On homepc: `cd ~/dev/mq-expense && git pull && npm ci && npm run build && sudo systemctl restart mq-expense`.
 
 (The DB and env file live outside the repo, so a pull/rebuild never disturbs user data or the key.)
 
@@ -68,6 +68,6 @@ PATH=/home/tuana/.local/bin:/usr/local/bin:/usr/bin:/bin
 
 ## Recovery notes
 
-- **Forgotten PIN:** operator runs `tsx server/scripts/reset-pin.ts <email> <newPin>` on homepc-1. No email, no in-app reset.
+- **Forgotten PIN:** operator runs `tsx server/scripts/reset-pin.ts <email> <newPin>` on homepc. No email, no in-app reset.
 - **Key loss = data loss:** there is no recovery path if `MQX_MASTER_KEY` is lost. Back it up.
 - **Logs:** `journalctl -u mq-expense -f` and `journalctl -u cloudflared -f`.

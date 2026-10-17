@@ -48,6 +48,7 @@ Scenarios:
 - No approval workflow or manager review.
 - No native mobile app. The web app installs as a PWA instead.
 - No public self-registration.
+- No hardening against bad actors inside the team. Users are trusted, invite-only, on their own devices. — user, 2026-10-17
 
 ## Settled choices
 

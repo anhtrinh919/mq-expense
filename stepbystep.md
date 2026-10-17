@@ -21,14 +21,14 @@ The repo is **private**: `github.com/anhtrinh919/mq-expense`.
 
 ### 1.2 Tailscale — join the tailnet
 
-Production runs on **homepc-1**, reachable only over Tailscale.
+Production runs on **homepc**, reachable only over Tailscale.
 
 1. Anh: [login.tailscale.com](https://login.tailscale.com) → **Users → Invite external users** → invite `hanhbh.213@gmail.com`.
 2. She accepts and will later sign in to the Tailscale app on her Mac with that Google account (Part 2).
 
-### 1.3 Tailscale — allow her to SSH into homepc-1 as `tuana`
+### 1.3 Tailscale — allow her to SSH into homepc as `tuana`
 
-By default Tailscale SSH only lets people into **their own** devices. homepc-1 belongs to Anh, so add a rule.
+By default Tailscale SSH only lets people into **their own** devices. homepc belongs to Anh, so add a rule.
 
 Anh: admin console → **Access Controls**, find the `"ssh"` section and add one rule (keep the existing ones):
 
@@ -115,15 +115,15 @@ brew install --cask libreoffice
 
 Receipt auto-read uses the `claude` CLI, which she already has via Claude Code — nothing to install.
 
-### 2.5 SSH to production (homepc-1)
+### 2.5 SSH to production (homepc)
 
 With Tailscale connected, this should just work — no SSH keys needed (Tailscale authenticates the connection):
 
 ```bash
-ssh tuana@homepc-1
+ssh tuana@homepc
 ```
 
-Note the username: it's always **`tuana`**, never her Mac username. Plain `ssh homepc-1` fails.
+Note the username: it's always **`tuana`**, never her Mac username. Plain `ssh homepc` fails (wrong user).
 
 If the first attempt opens a browser page asking to approve the session, approve it and retry.
 
@@ -131,7 +131,7 @@ If the first attempt opens a browser page asking to approve the session, approve
 
 - [ ] `git -C ~/dev/mq-expense pull` works (GitHub access)
 - [ ] http://localhost:5173 loads and she can log in (local dev works)
-- [ ] `ssh tuana@homepc-1 'hostname'` prints `homepc-1` (production access)
+- [ ] `ssh tuana@homepc 'hostname'` prints `HomePC` (production access)
 
 ---
 
@@ -143,25 +143,25 @@ If the first attempt opens a browser page asking to approve the session, approve
 4. **Deploy to production:**
 
 ```bash
-ssh tuana@homepc-1 'cd ~/dev/mq-expense && git pull && npm ci && npm run build && sudo systemctl restart mq-expense'
+ssh tuana@homepc 'cd ~/dev/mq-expense && git pull && npm ci && npm run build && sudo systemctl restart mq-expense'
 ```
 
 5. **Verify:** open https://mqexpense.ta-infra.uk and check the change. Logs if something looks wrong:
 
 ```bash
-ssh tuana@homepc-1 'journalctl -u mq-expense -n 50 --no-pager'
+ssh tuana@homepc 'journalctl -u mq-expense -n 50 --no-pager'
 ```
 
 Small bugs / ideas that don't need fixing right now → append to `polish.md` in the repo.
 
 ---
 
-## Production safety rules (important — read before any work on homepc-1)
+## Production safety rules (important — read before any work on homepc)
 
 - **Never touch `/etc/mq-expense/mq-expense.env`** — it holds the encryption master key. If that key is lost, **everyone's synced data is permanently unrecoverable**. Never print, copy, or echo `MQX_MASTER_KEY` anywhere.
-- **Never delete or move** `~/.local/share/mq-expense/` on homepc-1 — that's the production database and the key backup.
+- **Never delete or move** `~/.local/share/mq-expense/` on homepc — that's the production database and the key backup.
 - Deploys are safe by design: the database and env file live outside the repo, so `git pull && npm run build && restart` never touches user data.
-- Accounts are invite-only. New account / PIN reset only via server scripts on homepc-1 (see `CLAUDE.md` → Gotchas).
+- Accounts are invite-only. New account / PIN reset only via server scripts on homepc (see `CLAUDE.md` → Gotchas).
 - The project `CLAUDE.md` in the repo root has all production facts and gotchas — her Claude Code reads it automatically when working in the repo folder.
 
 Full deploy/recovery runbook: `docs/deployment.md`.

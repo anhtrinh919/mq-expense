@@ -11,16 +11,16 @@ See `tech-stack.md` for the full stack and decisions.
 - Local storage: IndexedDB via Dexie.js (all user data — zero server persistence)
 - Server: Node.js + Express (TypeScript, stateless API)
 - Processing: Python subprocesses (Pillow for image scanning, openpyxl for Excel, pypdf for PDF assembly)
-- Receipt AI: `claude -p` shelled out on homepc-1
+- Receipt AI: `claude -p` shelled out on homepc
 - Currency: xe.com rate at capture time, 1h server-side cache
-- Deployment: homepc-1 (always-on), Tailscale for remote access
+- Deployment: homepc (always-on), Tailscale for remote access
 
 ## Data Flow
 
 ```
 Client (browser / IndexedDB)
   ↕ HTTP (stateless)
-Node.js Express server (homepc-1)
+Node.js Express server (homepc)
   ↕ subprocess
 Python processing (Pillow / openpyxl / pypdf / claude -p)
 ```

@@ -5,7 +5,7 @@ Local-first expense tool for a Macquarie SEA sales manager + invited peers. Reac
 ## Production (live since 2026-06-05)
 
 - **URL:** https://mqexpense.ta-infra.uk
-- **Host:** homepc-1 — WSL2 Ubuntu on the always-on Windows PC. Reach it with `tailscale ssh tuana@homepc-1`. The Unix user is **`tuana`**, not the Mac's `anhtrinh`; plain `ssh homepc-1` fails with "failed to look up local user".
+- **Host:** Tailscale node `homepc` (100.92.37.38) — WSL2 Ubuntu on the always-on Windows PC. Reach it with `ssh tuana@homepc`. The Unix user is **`tuana`**, not your local username; plain `ssh homepc` fails. (The node `homepc-1` is the Windows side and is often offline — don't use it.)
 - **Service:** systemd `mq-expense.service` (User=tuana, port 8787, single-origin: serves `dist/` + API on one port). Logs: `journalctl -u mq-expense -f`.
 - **Public access:** a 5th ingress hostname on the shared `cloudflared.service` tunnel (UUID `644dacd1…`). Config: `~/.cloudflared/config.yml`. The Cloudflare account is already logged in there (`cert.pem`) — no re-login needed to add hostnames. To add a site: append an ingress rule (before the `http_status:404` catch-all), `cloudflared tunnel route dns <uuid> <host>`, then SIGHUP cloudflared (`sudo pkill -HUP -f 'cloudflared tunnel'` — the unit has no ExecReload).
 - **Secrets/state, all OUTSIDE git:** master key + manager seed in `/etc/mq-expense/mq-expense.env` (root, 600); operator key backup at `~/.local/share/mq-expense/MASTER_KEY_BACKUP.txt` (tuana, 600); DB at `~/.local/share/mq-expense/mqx-data.sqlite`. **Losing the master key = every user's synced data is permanently unrecoverable** (it's independent of PINs, so PIN reset is still possible).
@@ -14,7 +14,7 @@ Local-first expense tool for a Macquarie SEA sales manager + invited peers. Reac
 ## Gotchas
 
 - **Accounts are invite-only; managers are operator-seeded only.** First manager via `MQX_MANAGER_*` env on first boot; additional accounts via `tsx server/scripts/add-account.ts <email> <name> <pin> [manager|peer]` (needs `MQX_MASTER_KEY` + `MQX_DB_PATH` in env). Two managers seeded in prod: `tuananhtrinh919@gmail.com` and `hanhbh.213@gmail.com`.
-- **Forgotten PIN:** `tsx server/scripts/reset-pin.ts <email> <newPin>` on homepc-1. No email, no in-app reset (by design).
+- **Forgotten PIN:** `tsx server/scripts/reset-pin.ts <email> <newPin>` on homepc. No email, no in-app reset (by design).
 - **Python deps:** numpy is capped at **2.2.6** by opencv-python-headless 4.12 on linux/cp312 (2.4.x is unsatisfiable). Deps live in a venv at `server/python/.venv`; the service points at it via `PYTHON_BIN`.
 - **Receipt auto-read shells out to the `claude` CLI.** The systemd `PATH` must include `/home/tuana/.local/bin` or it silently degrades to manual date/amount entry.
 - **Full report generation needs LibreOffice (`soffice`) on the box** — a system package, not a pip dep, so it's easily missed (only the venv is documented). The report's xlsx→PDF step shells out to `soffice --headless`; without it the report fails with "report assembly failed". Install: `sudo apt-get install -y libreoffice-calc`. The Expenses "Export Excel" button (`/api/export-expenses-xlsx`, pure openpyxl) does NOT need it.
