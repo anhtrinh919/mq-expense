@@ -26,8 +26,8 @@ export interface Tombstone {
 }
 
 export interface Submitter {
+  claimCompany: string; // invoice header company / trading name (row above "From:")
   name: string;
-  businessName?: string; // invoice header; empty = use name (absent on profiles saved before round 2)
   email: string;
   jobTitle: string;
   phone: string;

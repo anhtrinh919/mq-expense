@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getProfile, listCountryCodes, createExpense } from "../data/repos";
 import { loadCaptureDraft, saveCaptureDraft, clearCaptureDraft } from "../data/captureDraft";
 import type { Profile, CountryCode } from "../data/types";
-import { processReceipt, getFx, base64ToBlob, ApiError } from "../lib/api";
+import { processReceipt, getFx, base64ToBlob, generateMrd, ApiError } from "../lib/api";
 import { toVND, effectiveRate, conversionNote, rateSource } from "../lib/currency";
 import { money, todayISO } from "../lib/format";
 import { Banner } from "../components/ui";
@@ -57,6 +57,14 @@ export default function Capture() {
   const preferredRef = useRef<string>("");
   const [, forceTick] = useState(0);
   const [isTouch] = useState(() => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
+
+  // ---- MRD (Missing Receipt Declaration) mode ----
+  const [mrdMode, setMrdMode] = useState(false);
+  const [mrdSaving, setMrdSaving] = useState(false);
+  const [mrdErr, setMrdErr] = useState<string | null>(null);
+  const [mrdForm, setMrdForm] = useState({
+    date: "", vendor: "", amount: "", currency: "", country: "", accountCode: "", businessReason: "",
+  });
 
   const base = (profile?.baseCurrency || "VND").toUpperCase();
   const markup = profile?.currencyMarkupPct ?? 3;
@@ -135,21 +143,38 @@ export default function Capture() {
     }
   }
 
+  // Keep refs so the unmount effect can read the latest state without being in its dep array.
+  const queueRef = useRef<QueueItem[]>([]);
+  const idxRef = useRef(0);
+  queueRef.current = queue;
+  idxRef.current = idx;
+
+  const buildDraftItems = (q: QueueItem[]) =>
+    q.map((it) => ({
+      id: it.id, fileName: it.file.name, fileType: it.file.type, fileBlob: it.file,
+      status: it.status, bwScanMime: it.bwScan?.mimeType, bwScanData: it.bwScan?.dataBase64, error: it.error,
+      date: it.date, amount: it.amount, currency: it.currency, country: it.country, accountCode: it.accountCode, description: it.description,
+    }));
+
   // ---- autosave the draft (debounced) ----
   useEffect(() => {
     const t = setTimeout(() => {
       if (queue.length === 0) { void clearCaptureDraft(); return; }
-      void saveCaptureDraft({
-        idx,
-        items: queue.map((it) => ({
-          id: it.id, fileName: it.file.name, fileType: it.file.type, fileBlob: it.file,
-          status: it.status, bwScanMime: it.bwScan?.mimeType, bwScanData: it.bwScan?.dataBase64, error: it.error,
-          date: it.date, amount: it.amount, currency: it.currency, country: it.country, accountCode: it.accountCode, description: it.description,
-        })),
-      });
+      void saveCaptureDraft({ idx, items: buildDraftItems(queue) });
     }, 400);
     return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue, idx]);
+
+  // ---- save immediately on unmount so navigating away never drops a queued receipt ----
+  useEffect(() => {
+    return () => {
+      const q = queueRef.current;
+      if (q.length > 0) void saveCaptureDraft({ idx: idxRef.current, items: buildDraftItems(q) });
+      else void clearCaptureDraft();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function addFiles(files: FileList | File[]) {
     const arr = Array.from(files);
@@ -249,6 +274,133 @@ export default function Capture() {
     setQueue([]); setIdx(0); setView("edit"); setRestored(false);
   }
 
+  // ---- MRD save ----
+  function openMrd() {
+    const def = codesRef.current.find((c) => c.country === preferredRef.current) || codesRef.current[0];
+    setMrdForm({
+      date: todayISO(),
+      vendor: "",
+      amount: "",
+      currency: base,
+      country: def?.country || "",
+      accountCode: def?.accountCode || "",
+      businessReason: "",
+    });
+    setMrdErr(null);
+    setMrdMode(true);
+  }
+
+  function patchMrd(p: Partial<typeof mrdForm>) {
+    setMrdForm((cur) => ({ ...cur, ...p }));
+  }
+
+  function mrdPickCountry(country: string) {
+    const c = codesRef.current.find((x) => x.country === country);
+    patchMrd({ country, accountCode: c?.accountCode ?? "" });
+  }
+
+  async function saveMrd() {
+    if (!profile || mrdSaving) return;
+    const { date, vendor, amount, currency, country, accountCode, businessReason } = mrdForm;
+    if (!date || !amount || !vendor) { setMrdErr("Date, vendor, and amount are required."); return; }
+    setMrdSaving(true); setMrdErr(null);
+    try {
+      const res = await generateMrd({
+        date, vendor, description: vendor, amount, currency, country, accountCode,
+        businessReason, userName: profile.submitter.name || profile.submitter.email || "",
+      });
+      const pdfBlob = new Blob(
+        [Uint8Array.from(atob(res.mrdPdf.dataBase64), (c) => c.charCodeAt(0))],
+        { type: "application/pdf" },
+      );
+      const pdfFile = new File([pdfBlob], res.mrdPdf.filename, { type: "application/pdf" });
+
+      const ccy = currency.toUpperCase().trim();
+      const isForeign = !!ccy && ccy !== base;
+      let amtVND = Math.round(parseFloat(amount));
+      let effRate: number | null = null;
+      let note = "";
+      if (isForeign) {
+        let rate = rateCache.current.get(ccy);
+        if (!rate) { const fx = await getFx(ccy, base); rate = fx.rate; rateCache.current.set(ccy, rate); }
+        const r = effectiveRate(rate, markup);
+        amtVND = toVND(parseFloat(amount), rate, markup);
+        effRate = r;
+        note = conversionNote(parseFloat(amount), ccy, r, amtVND, markup, base);
+      }
+      await createExpense(
+        {
+          date, description: businessReason || vendor, amountVND: amtVND,
+          baseCurrency: base,
+          originalAmount: isForeign ? parseFloat(amount) : null,
+          originalCurrency: isForeign ? ccy : base,
+          exchangeRate: effRate, rateSource: isForeign ? rateSource(markup) : "",
+          country, accountCode, notes: note,
+        },
+        { mimeType: "application/pdf", blob: pdfFile },
+        { mimeType: "application/pdf", blob: pdfFile },
+      );
+      setMrdMode(false);
+      setDoneCount((n) => n + 1);
+      setSavedFlash(money(amtVND, base));
+      setTimeout(() => setSavedFlash(null), 1400);
+    } catch (e) {
+      setMrdErr(e instanceof ApiError ? e.message : "Could not generate the declaration. Check the server.");
+    } finally {
+      setMrdSaving(false);
+    }
+  }
+
+  // ---------- render: MRD form ----------
+  if (mrdMode) {
+    return (
+      <div className="capture">
+        <div className="cap-head">
+          <h1 className="page-title">Missing Receipt Declaration</h1>
+          <button className="btn btn-ghost" onClick={() => setMrdMode(false)}>← Back</button>
+        </div>
+        <div className="mrd-form card">
+          <p className="muted">Fill in the expense details. A signed declaration PDF will be generated and saved as the receipt.</p>
+          {mrdErr && <Banner kind="error" title="Could not save" body={mrdErr} />}
+          <label className="field"><span className="field-label">Date of expense</span>
+            <input className="input" type="date" value={mrdForm.date} max={todayISO()} onChange={(e) => patchMrd({ date: e.target.value })} />
+          </label>
+          <label className="field"><span className="field-label">Vendor / where you were</span>
+            <input className="input" value={mrdForm.vendor} onChange={(e) => patchMrd({ vendor: e.target.value })} placeholder="e.g. Grab* A-962XPGHG2434AV" />
+          </label>
+          <div className="insp-amt">
+            <label className="field"><span className="field-label">Amount</span>
+              <input className="input mono" inputMode="decimal" value={mrdForm.amount} onChange={(e) => patchMrd({ amount: e.target.value })} placeholder="0.00" />
+            </label>
+            <label className="field"><span className="field-label">Currency</span>
+              <input className="input mono" value={mrdForm.currency} onChange={(e) => patchMrd({ currency: e.target.value.toUpperCase() })} placeholder={base} />
+            </label>
+          </div>
+          <label className="field"><span className="field-label">Country / account</span>
+            <select className="select" value={mrdForm.country} onChange={(e) => mrdPickCountry(e.target.value)}>
+              <option value="">Select…</option>
+              {codes.map((c) => <option key={c.id} value={c.country}>{c.country} · {c.accountCode}</option>)}
+            </select>
+          </label>
+          <label className="field"><span className="field-label">Business reason</span>
+            <input className="input" value={mrdForm.businessReason} onChange={(e) => patchMrd({ businessReason: e.target.value })} placeholder="e.g. Taxi between events" />
+          </label>
+          <p className="mrd-cert tertiary">
+            "I certify that one or more of the related tax invoices/receipts applicable to this expense was either misplaced or unobtainable."
+          </p>
+          <p className="tertiary mrd-signee">Signed as: <strong>{profile?.submitter.name || profile?.submitter.email || "—"}</strong></p>
+          <div className="mrd-foot">
+            <button className="btn" onClick={() => setMrdMode(false)}>Cancel</button>
+            <button className="btn btn-primary" disabled={mrdSaving} onClick={() => void saveMrd()}>
+              {mrdSaving ? "Generating…" : "Generate declaration & save"}
+            </button>
+          </div>
+        </div>
+        {savedFlash && <div className="saved-flash">✓ Saved — {savedFlash}</div>}
+      </div>
+    );
+  }
+
   // ---------- render: empty / done ----------
   if (queue.length === 0) {
     return (
@@ -301,6 +453,10 @@ export default function Capture() {
           <Tip k="PDF / JPG / PNG / HEIC" v="All common formats" />
           <Tip k="Up to 25 MB" v="per file" />
           <Tip k="Read in the background" v="add several, review them in one pass" />
+        </div>
+        <div className="mrd-hint">
+          <span className="tertiary">Receipt lost or unavailable?</span>
+          <button className="link-accent" onClick={openMrd}>Create a Missing Receipt Declaration</button>
         </div>
         {savedFlash && <div className="saved-flash">✓ Saved — {savedFlash}</div>}
       </div>

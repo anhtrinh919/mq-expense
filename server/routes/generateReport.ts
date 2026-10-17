@@ -72,8 +72,8 @@ generateReportRouter.post("/generate-report", async (req, res) => {
     const [pdf, xlsx] = await Promise.all([readFile(out.combinedPdf), readFile(out.expenseXlsx)]);
 
     res.status(200).json({
-      combinedPdf: { filename: `${job.invoiceNumber}-submission.pdf`, dataBase64: pdf.toString("base64") },
-      expenseXlsx: { filename: `expenses-${job.invoiceNumber}.xlsx`, dataBase64: xlsx.toString("base64") },
+      combinedPdf: { filename: `${job.invoiceNumber}.pdf`, dataBase64: pdf.toString("base64") },
+      expenseXlsx: { filename: `${job.invoiceNumber}-expenses.xlsx`, dataBase64: xlsx.toString("base64") },
     });
   } catch (e) {
     res.status(500).json({ error: "report assembly failed", detail: String(e).slice(-300) });
@@ -88,7 +88,7 @@ generateReportRouter.post("/generate-report", async (req, res) => {
 interface XlsxBody {
   baseCurrency?: string;
   periodLabel?: string;
-  expenses?: Array<{ date?: string; description?: string; amountVND?: number; accountCode?: string }>;
+  expenses?: Array<{ date?: string; description?: string; amountVND?: number; accountCode?: string; country?: string }>;
 }
 
 generateReportRouter.post("/export-expenses-xlsx", async (req, res) => {

@@ -49,7 +49,7 @@ class InvoiceTest(unittest.TestCase):
             self.assertNotIn(s, text)
 
     def test_header_uses_business_name_else_full_name(self):
-        self.assertTrue(self.fill(peer_job(businessName="Pratama Trading"))["A1"].startswith("Pratama Trading"))
+        self.assertTrue(self.fill(peer_job(claimCompany="Pratama Trading"))["A1"].startswith("Pratama Trading"))
         a1 = self.fill(peer_job())["A1"]
         self.assertTrue(a1.startswith("Rizky Pratama"))
         self.assertTrue(a1.rstrip().endswith("Invoice"))

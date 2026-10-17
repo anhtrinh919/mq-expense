@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { listExpenses, listCountryCodes, updateExpense, deleteExpense, type ExpenseFilter } from "../data/repos";
-import type { Expense, CountryCode } from "../data/types";
-import { getFx, exportExpensesXlsx, base64ToBlob, ApiError } from "../lib/api";
+import { listExpenses, listCountryCodes, updateExpense, deleteExpense, getProfile, getImageById, saveReport, listReports, type ExpenseFilter } from "../data/repos";
+import type { Expense, CountryCode, ExpenseReport } from "../data/types";
+import { getFx, exportExpensesXlsx, generateReport, blobToBase64, base64ToBlob, ApiError, type GenerateReportPayload } from "../lib/api";
 import { toVND, effectiveRate, conversionNote, rateSource } from "../lib/currency";
-import { getProfile } from "../data/repos";
-import { money, num, fmtDate } from "../lib/format";
+import { money, num, fmtDate, periodLabel, todayISO } from "../lib/format";
+import { suggestInvoiceNumber, isInvoiceNumberUsed } from "../lib/invoice";
+import { makeZip } from "../lib/zip";
+import { uid } from "../data/db";
 import { PageHeader, StatusChip, EmptyState, Modal, Banner } from "../components/ui";
 import ReceiptViewer from "../components/ReceiptViewer";
 import { useSyncSignal } from "../lib/sync";
@@ -15,7 +17,6 @@ export default function Expenses() {
   const [rows, setRows] = useState<Expense[]>([]);
   const [codes, setCodes] = useState<CountryCode[]>([]);
   const [markup, setMarkup] = useState(3);
-  // Default to Unsubmitted — what still needs reporting is what the user comes here to find.
   const [filter, setFilter] = useState<ExpenseFilter>({ status: "pending" });
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "date", dir: "desc" });
   const [editing, setEditing] = useState<Expense | null>(null);
@@ -24,6 +25,29 @@ export default function Expenses() {
   const [exporting, setExporting] = useState(false);
   const [exportErr, setExportErr] = useState<string | null>(null);
 
+  // ---- inline report generation ----
+  const [genModal, setGenModal] = useState(false);
+  const [genInvoiceNo, setGenInvoiceNo] = useState("");
+  const [genReports, setGenReports] = useState<ExpenseReport[]>([]);
+  const [genCur, setGenCur] = useState("VND");
+  const genNumberUsed = isInvoiceNumberUsed(genReports, genInvoiceNo);
+  const [genState, setGenState] = useState<"idle" | "generating" | "done" | "error">("idle");
+  const [genErr, setGenErr] = useState<string | null>(null);
+
+  // ---- row selection ----
+  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const selectedIds = useMemo(() => Object.keys(checked).filter((id) => checked[id]), [checked]);
+  const selectedCount = selectedIds.length;
+  const allChecked = rows.length > 0 && rows.every((e) => checked[e.id]);
+  const someChecked = selectedCount > 0 && !allChecked;
+
+  const toggleOne = (id: string) => setChecked((c) => ({ ...c, [id]: !c[id] }));
+  const toggleAll = () => {
+    if (allChecked) setChecked({});
+    else setChecked(Object.fromEntries(rows.map((e) => [e.id, true])));
+  };
+  const clearSelection = () => setChecked({});
+
   const synced = useSyncSignal();
   const reload = useCallback(() => { listExpenses(filter).then(setRows); }, [filter]);
   useEffect(() => { reload(); }, [reload, synced]);
@@ -31,6 +55,9 @@ export default function Expenses() {
     listCountryCodes().then(setCodes);
     getProfile().then((p) => setMarkup(p.currencyMarkupPct));
   }, []);
+
+  // Clear stale selections when filter changes
+  useEffect(() => { setChecked({}); }, [filter]);
 
   const sorted = useMemo(() => sortRows(rows, sort.key, sort.dir), [rows, sort]);
   function toggleSort(key: SortKey) {
@@ -41,18 +68,18 @@ export default function Expenses() {
   const bases = new Set(rows.map((e) => e.baseCurrency || "VND"));
   const totalLabel = bases.size === 1 ? money(total, [...bases][0]) : num(total, 0);
 
-  // Export the currently-filtered rows as the same formatted Excel ledger the Macquarie
-  // report produces (subtotals per account code + grand total) — a partial-report export.
+  // Export the selected rows (or all filtered rows if nothing selected)
   async function exportXlsx() {
-    if (rows.length === 0 || exporting) return;
+    const targets = selectedCount > 0 ? rows.filter((e) => checked[e.id]) : rows;
+    if (targets.length === 0 || exporting) return;
     setExporting(true); setExportErr(null);
     try {
-      const dates = rows.map((e) => e.date).sort();
-      const bases = new Set(rows.map((e) => e.baseCurrency || "VND"));
+      const dates = targets.map((e) => e.date).sort();
+      const bs = new Set(targets.map((e) => e.baseCurrency || "VND"));
       const res = await exportExpensesXlsx({
-        baseCurrency: bases.size === 1 ? [...bases][0] : "VND",
+        baseCurrency: bs.size === 1 ? [...bs][0] : "VND",
         periodLabel: dates.length ? `${dates[0]} – ${dates[dates.length - 1]}` : "",
-        expenses: rows.map((e) => ({ date: e.date, description: e.description, amountVND: e.amountVND, accountCode: e.accountCode })),
+        expenses: targets.map((e) => ({ date: e.date, description: e.description, amountVND: e.amountVND, accountCode: e.accountCode, country: e.country })),
       });
       const blob = base64ToBlob(res.expenseXlsx.dataBase64, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       downloadBlob(blob, res.expenseXlsx.filename);
@@ -63,15 +90,83 @@ export default function Expenses() {
     }
   }
 
+  async function openGenModal() {
+    setGenState("idle"); setGenErr(null); setGenModal(true);
+    try {
+      const [p, reps] = await Promise.all([getProfile(), listReports()]);
+      setGenReports(reps); setGenCur(p.baseCurrency || "VND");
+      setGenInvoiceNo(suggestInvoiceNumber(reps, p.invoicePrefix, todayISO()));
+    } catch { /* user can type manually */ }
+  }
+
+  async function generateFromSelection() {
+    if (!genInvoiceNo.trim()) return;
+    // Re-check against the latest list: another device may have used this number since the modal opened.
+    const latest = await listReports();
+    if (isInvoiceNumberUsed(latest, genInvoiceNo)) { setGenReports(latest); return; }
+    setGenState("generating"); setGenErr(null);
+    try {
+      const profile = await getProfile();
+      const targets = sorted.filter((e) => checked[e.id]).sort((a, b) => (a.date < b.date ? -1 : 1));
+      const receipts: GenerateReportPayload["receipts"] = [];
+      for (const e of targets) {
+        const img = await getImageById(e.bwScanId);
+        if (img) receipts.push({ expenseRef: e.id, mimeType: img.mimeType, dataBase64: await blobToBase64(img.blob) });
+      }
+      const label = periodLabel(targets[0].date, targets[targets.length - 1].date);
+      const res = await generateReport({
+        profile,
+        invoiceNumber: genInvoiceNo.trim(),
+        periodLabel: label,
+        baseCurrency: profile.baseCurrency || "VND",
+        expenses: targets.map((e) => ({
+          date: e.date, description: e.description, amountVND: e.amountVND,
+          accountCode: e.accountCode, country: e.country, notes: e.notes,
+          originalAmount: e.originalAmount, originalCurrency: e.originalCurrency,
+          exchangeRate: e.exchangeRate, rateSource: e.rateSource,
+        })),
+        receipts,
+      });
+      if (!res?.combinedPdf?.dataBase64 || !res?.expenseXlsx?.dataBase64) {
+        const raw = res as unknown as Record<string, unknown>;
+        throw new Error(`Incomplete server response — ${raw?.error ?? raw?.detail ?? "no detail"}`);
+      }
+      const combinedPdf = base64ToBlob(res.combinedPdf.dataBase64, "application/pdf");
+      const expenseXlsx = base64ToBlob(res.expenseXlsx.dataBase64, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      const report: ExpenseReport = {
+        id: uid("rep_"),
+        invoiceNumber: genInvoiceNo.trim(),
+        periodStart: targets[0].date, periodEnd: targets[targets.length - 1].date,
+        periodLabel: label,
+        totalVND: targets.reduce((s, e) => s + e.amountVND, 0),
+        expenseIds: targets.map((e) => e.id),
+        status: "generated", generatedAt: Date.now(), paidAt: null,
+        combinedPdf, expenseXlsx,
+      };
+      await saveReport(report);
+      const zip = makeZip([
+        { name: res.combinedPdf.filename, data: b64bytes(res.combinedPdf.dataBase64) },
+        { name: res.expenseXlsx.filename, data: b64bytes(res.expenseXlsx.dataBase64) },
+      ]);
+      downloadBlob(zip, `${genInvoiceNo.trim()}.zip`);
+      setGenState("done");
+      clearSelection();
+      reload();
+    } catch (e) {
+      setGenErr(e instanceof ApiError ? e.message : String(e));
+      setGenState("error");
+    }
+  }
+
   return (
     <div className="expenses">
       <PageHeader
         title="Expenses"
         subtitle="All receipts captured on this device"
         right={
-          <>
-            <button className="btn" onClick={exportXlsx} disabled={rows.length === 0 || exporting}>{exporting ? "Exporting…" : "Export Excel"}</button>
-          </>
+          <button className="btn" onClick={exportXlsx} disabled={rows.length === 0 || exporting}>
+            {exporting ? "Exporting…" : "Export Excel"}
+          </button>
         }
       />
 
@@ -102,11 +197,31 @@ export default function Expenses() {
         </div>
       </div>
 
+      {/* Selection action bar — only visible when rows are ticked */}
+      {selectedCount > 0 && (
+        <div className="sel-bar">
+          <span className="sel-count">{selectedCount} selected</span>
+          <button className="btn" onClick={exportXlsx} disabled={exporting}>{exporting ? "Exporting…" : "Export Excel"}</button>
+          <button className="btn btn-primary" onClick={openGenModal}>Create report</button>
+          <button className="btn btn-ghost sel-clear" onClick={clearSelection}>✕ Clear</button>
+        </div>
+      )}
+
       {rows.length === 0 ? (
         <EmptyState title="No expenses yet" body="Capture your first receipt — we'll read it, convert the amount to VND, and store it here." action={<Link to="/capture" className="btn btn-primary">+ Capture a receipt</Link>} />
       ) : (
         <div className="exp-table card">
           <div className="exp-head">
+            <span className="exp-chk-col">
+              <input
+                type="checkbox"
+                className="exp-chk"
+                checked={allChecked}
+                ref={(el) => { if (el) el.indeterminate = someChecked; }}
+                onChange={toggleAll}
+                aria-label="Select all"
+              />
+            </span>
             <SortTh label="Date" k="date" sort={sort} onSort={toggleSort} />
             <span>Description</span><span>Original</span><span>Rate</span>
             <SortTh label="Amount" k="amountVND" sort={sort} onSort={toggleSort} className="ta-r" />
@@ -115,7 +230,10 @@ export default function Expenses() {
             <span />
           </div>
           {sorted.map((e) => (
-            <div className="exp-row" key={e.id}>
+            <div className={`exp-row${checked[e.id] ? " exp-row-sel" : ""}`} key={e.id} onClick={() => toggleOne(e.id)}>
+              <span className="exp-chk-col" onClick={(ev) => ev.stopPropagation()}>
+                <input type="checkbox" className="exp-chk" checked={!!checked[e.id]} onChange={() => toggleOne(e.id)} aria-label="Select" />
+              </span>
               <span className="num exp-date">{fmtDate(e.date)}</span>
               <span className="exp-desc">{e.description || <em className="tertiary">(no description)</em>}</span>
               <span className="num exp-orig tertiary">{e.originalCurrency && e.originalCurrency !== (e.baseCurrency || "VND") ? `${num(e.originalAmount ?? 0)} ${e.originalCurrency}` : "—"}</span>
@@ -123,7 +241,7 @@ export default function Expenses() {
               <span className="num exp-vnd ta-r">{money(e.amountVND, e.baseCurrency)}</span>
               <span className="exp-cc tertiary">{e.country}</span>
               <span><StatusChip kind={e.status === "submitted" ? "submitted" : "pending"} /></span>
-              <span className="exp-act">
+              <span className="exp-act" onClick={(ev) => ev.stopPropagation()}>
                 <button className="btn btn-ghost ico" title="View receipt" onClick={() => setViewing(e)}>🧾</button>
                 <button className="btn btn-ghost ico" title="Edit" onClick={() => setEditing(e)}>✎</button>
                 <button className="btn btn-ghost ico" title="Delete" onClick={() => setDeleting(e)}>✕</button>
@@ -158,6 +276,42 @@ export default function Expenses() {
           </div>
         </Modal>
       )}
+
+      {genModal && (
+        <Modal
+          eyebrow="Generate report"
+          title={`${selectedCount} expense${selectedCount !== 1 ? "s" : ""} selected`}
+          onClose={() => { setGenModal(false); setGenState("idle"); setGenErr(null); }}
+          footer={genState === "idle" || genState === "error" ? (
+            <><button className="btn" onClick={() => setGenModal(false)}>Cancel</button>
+            <button className="btn btn-primary" disabled={!genInvoiceNo.trim() || genNumberUsed} onClick={generateFromSelection}>Generate &amp; download</button></>
+          ) : genState === "done" ? (
+            <button className="btn btn-primary" onClick={() => { setGenModal(false); setGenState("idle"); }}>Done</button>
+          ) : undefined}
+        >
+          {genState === "idle" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+              <p className="muted">Total: <strong className="num">{money(sorted.filter((e) => checked[e.id]).reduce((s, e) => s + e.amountVND, 0), genCur)}</strong></p>
+              <label className="field">
+                <span className="field-label">Invoice number</span>
+                <input className={genNumberUsed ? "input mono invalid" : "input mono"} value={genInvoiceNo} onChange={(ev) => setGenInvoiceNo(ev.target.value)} placeholder="e.g. HBEXPENSE26-1" autoFocus aria-invalid={genNumberUsed} aria-describedby={genNumberUsed ? "gen-inv-used" : undefined} />
+                {genNumberUsed && <span id="gen-inv-used" className="field-error" role="alert">Already used by another report. Pick a new number.</span>}
+              </label>
+            </div>
+          )}
+          {genState === "generating" && (
+            <div className="gen-card" style={{ margin: 0 }}>
+              <p>Generating report…</p>
+              <p className="muted">Reading receipts and building PDF — this takes 20–60 s</p>
+              <div className="gen-bar"><span /></div>
+            </div>
+          )}
+          {genState === "done" && (
+            <p>Report <strong className="num">{genInvoiceNo}</strong> downloaded and saved to Report History.</p>
+          )}
+          {genState === "error" && <Banner kind="error" title="Generation failed" body={genErr ?? undefined} />}
+        </Modal>
+      )}
     </div>
   );
 }
@@ -170,7 +324,7 @@ function sortRows(rows: Expense[], key: SortKey, dir: "asc" | "desc"): Expense[]
     let c = 0;
     if (key === "amountVND") c = a.amountVND - b.amountVND;
     else c = String(a[key]).localeCompare(String(b[key]));
-    if (c === 0) c = b.createdAt - a.createdAt; // stable tiebreak: newest first
+    if (c === 0) c = b.createdAt - a.createdAt;
     return c * sign;
   });
 }
@@ -242,4 +396,10 @@ function downloadBlob(blob: Blob, filename: string) {
   const a = document.createElement("a");
   a.href = url; a.download = filename; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function b64bytes(b64: string): Uint8Array {
+  const bin = atob(b64); const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
 }

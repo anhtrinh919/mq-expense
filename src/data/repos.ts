@@ -15,7 +15,7 @@ export function emptyProfile(): Profile {
     id: "profile",
     invoicePrefix: "",
     vendorId: "",
-    submitter: { name: "", businessName: "", email: "", jobTitle: "", phone: "", addressLine1: "", addressLine2: "", country: "" },
+    submitter: { claimCompany: "", name: "", email: "", jobTitle: "", phone: "", addressLine1: "", addressLine2: "", country: "" },
     invoiceTo: { name: "Macquarie University", address: "", email: "" },
     bank: { accountName: "", accountNumber: "", swift: "", bankName: "" },
     currencyMarkupPct: 3,
@@ -97,7 +97,7 @@ export async function dedupeCountryCodes(): Promise<number> {
 
 export async function listCountryCodes(): Promise<CountryCode[]> {
   const all = await db.countryCodes.toArray();
-  return all.sort((a, b) => a.sortOrder - b.sortOrder);
+  return all.sort((a, b) => a.sortOrder - b.sortOrder); // repeats are removed for real by dedupeCountryCodes after sync
 }
 
 export async function upsertCountryCode(c: CountryCode): Promise<void> {
@@ -205,6 +205,11 @@ export async function getImage(id: string, kind: ImageKind): Promise<StoredImage
 
 export async function getImageById(id: string): Promise<StoredImage | undefined> {
   return db.images.get(id);
+}
+
+export async function getExpensesByIds(ids: string[]): Promise<Expense[]> {
+  const results = await Promise.all(ids.map((id) => db.expenses.get(id)));
+  return results.filter((e): e is Expense => e !== undefined);
 }
 
 // ---------- Reports ----------

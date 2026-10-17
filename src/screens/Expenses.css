@@ -52,8 +52,8 @@
 .exp-head,
 .exp-row {
   display: grid;
-  /* Description gets the lion's share; the numeric columns are trimmed to make room. */
-  grid-template-columns: 64px minmax(220px, 1fr) 88px 56px 120px 88px 84px 84px;
+  /* checkbox | date | description | orig | rate | amount | country | status | actions */
+  grid-template-columns: 28px 64px minmax(220px, 1fr) 88px 56px 120px 88px 84px 84px;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-5);
@@ -88,12 +88,52 @@
 .exp-th-ind { font-size: 9px; }
 .exp-row {
   border-top: 1px solid var(--border-soft);
+  cursor: pointer;
 }
 .exp-row:first-of-type {
   border-top: none;
 }
 .exp-row:hover {
   background: var(--bg-subtle);
+}
+.exp-row-sel {
+  background: var(--accent-soft);
+}
+.exp-row-sel:hover {
+  background: var(--accent-soft);
+}
+.exp-chk-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.exp-chk {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+.sel-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  flex-wrap: wrap;
+}
+.sel-count {
+  font-weight: 600;
+  font-size: 14px;
+  flex: 1;
+  min-width: max-content;
+}
+.sel-clear {
+  color: var(--text-tertiary);
+  font-size: 13px;
 }
 .ta-r { text-align: right; }
 .exp-date { font-size: 12px; color: var(--text-secondary); }
@@ -141,14 +181,15 @@
 @media (max-width: 860px) {
   .exp-head { display: none; }
   .exp-row {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 28px 1fr auto;
     grid-auto-rows: auto;
     gap: 4px var(--space-3);
   }
   .exp-orig, .exp-rate, .exp-cc { display: none; }
-  .exp-date { grid-column: 1; }
-  .exp-vnd { grid-column: 2; grid-row: 1; }
-  .exp-desc { grid-column: 1 / -1; }
+  .exp-chk-col { grid-column: 1; grid-row: 1 / 3; align-self: center; }
+  .exp-date { grid-column: 2; }
+  .exp-vnd { grid-column: 3; grid-row: 1; }
+  .exp-desc { grid-column: 2 / -1; }
   .edit-grid { grid-template-columns: 1fr; }
   .filt-in { width: 130px; }
   .exp-cap-cta {
