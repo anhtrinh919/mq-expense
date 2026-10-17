@@ -4,8 +4,8 @@
 
 ## Next
 
-- Security hardening: lock down the receipt reader, PIN guessing, request limits, sessions — found, 2026-10-17
 - Report correctness: invoice shows only the submitter's own details; exact totals; safe numbering — found, 2026-10-17
+- Country code cleanup: one copy of each country per account, on every device — found, 2026-10-17
 - Sync reliability: no lost, revived, or leaked data across devices and accounts — found, 2026-10-17
 - Add an expense with no receipt (MQ allows no receipt under $80) — user, 2026-06-05
 
