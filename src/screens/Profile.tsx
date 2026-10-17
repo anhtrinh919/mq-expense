@@ -12,6 +12,7 @@ import type { Profile, CountryCode } from "../data/types";
 import { PageHeader, Banner } from "../components/ui";
 import { COUNTRY_OPTIONS, CURRENCIES, currencyForCountry, currencyLabel } from "../lib/countries";
 import { loadDraft, saveDraft, clearDraft } from "../lib/formDraft";
+import { useSyncSignal } from "../lib/sync";
 import "./Settings.css";
 
 const DRAFT_KEY = "mqx:draft:profile";
@@ -25,6 +26,10 @@ export default function ProfilePage() {
   const [showErrors, setShowErrors] = useState(false);
   const [restored, setRestored] = useState(false);
   const dirty = useRef(false);
+  // Country codes the user added or edited since the last save. Only these are written back,
+  // so a stale copy never revives rows that sync removed.
+  const touchedCodes = useRef(new Set<string>());
+  const synced = useSyncSignal();
 
   useEffect(() => {
     getProfile().then((p) => {
@@ -32,8 +37,11 @@ export default function ProfilePage() {
       if (draft) { setProfile(draft); setRestored(true); }
       else setProfile(p);
     });
-    listCountryCodes().then(setCodes);
   }, []);
+
+  useEffect(() => {
+    if (touchedCodes.current.size === 0) listCountryCodes().then(setCodes);
+  }, [synced]);
 
   useEffect(() => {
     if (!profile || !dirty.current) return;
@@ -56,7 +64,8 @@ export default function ProfilePage() {
   async function save() {
     if (!profile) return;
     await saveProfile(profile);
-    for (const c of codes) await upsertCountryCode(c);
+    for (const c of codes) if (touchedCodes.current.has(c.id)) await upsertCountryCode(c);
+    touchedCodes.current.clear();
     clearDraft(DRAFT_KEY);
     dirty.current = false;
     setRestored(false);
@@ -68,9 +77,16 @@ export default function ProfilePage() {
     patch({ homeCountry: c, baseCurrency: currencyForCountry(c) });
   }
 
-  function addCode() { setCodes((cur) => [...cur, newCountryCode(cur.length)]); }
-  function patchCode(id: string, p: Partial<CountryCode>) { setCodes((cur) => cur.map((c) => (c.id === id ? { ...c, ...p } : c))); }
-  async function removeCode(id: string) { await deleteCountryCode(id); setCodes((cur) => cur.filter((c) => c.id !== id)); }
+  function addCode() {
+    const c = newCountryCode(codes.length);
+    touchedCodes.current.add(c.id);
+    setCodes((cur) => [...cur, c]);
+  }
+  function patchCode(id: string, p: Partial<CountryCode>) {
+    touchedCodes.current.add(id);
+    setCodes((cur) => cur.map((c) => (c.id === id ? { ...c, ...p } : c)));
+  }
+  async function removeCode(id: string) { touchedCodes.current.delete(id); await deleteCountryCode(id); setCodes((cur) => cur.filter((c) => c.id !== id)); }
 
   const invalid = (cond: boolean) => (showErrors && cond ? "input invalid" : "input");
 
