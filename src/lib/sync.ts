@@ -8,6 +8,7 @@ import { db, withSuppressedStamp } from "../data/db";
 import type { Table } from "dexie";
 import { getAccount, saveAccount, isAuthenticated } from "./authClient";
 import { blobToBase64, base64ToBlob, authHeaders } from "./api";
+import { dedupeCountryCodes } from "../data/repos";
 
 type SyncStore = "expenses" | "images" | "reports" | "profile" | "countryCodes";
 const STORES: SyncStore[] = ["profile", "countryCodes", "expenses", "images", "reports"];
@@ -98,6 +99,11 @@ export async function syncNow(): Promise<void> {
   try {
     await push();
     await pull();
+    // Older builds seeded country codes with random ids per device; remove the repeats and push the deletes.
+    if ((await dedupeCountryCodes()) > 0) {
+      pending = true;
+      emitSynced();
+    }
   } catch (e) {
     // Network/offline: leave cursors as-is and try again next tick.
     console.warn("[sync] failed, will retry", e);

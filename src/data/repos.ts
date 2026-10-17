@@ -70,8 +70,29 @@ const SEED_CODES: Array<Omit<CountryCode, "id">> = [
 export async function seedCountryCodesIfEmpty(): Promise<boolean> {
   const count = await db.countryCodes.count();
   if (count > 0) return false;
-  await db.countryCodes.bulkPut(SEED_CODES.map((c) => ({ ...c, id: uid("cc_") })));
+  // Fixed ids: every device seeds the same rows, so sync merges them instead of doubling them.
+  await db.countryCodes.bulkPut(SEED_CODES.map((c) => ({ ...c, id: `cc_seed_${c.sortOrder}` })));
   return true;
+}
+
+/** Deletes exact repeats (same country + code, ignoring case/spaces). Keeps the smallest id, so every
+ *  device picks the same keeper. Returns how many were removed. */
+export async function dedupeCountryCodes(): Promise<number> {
+  return db.transaction("rw", db.countryCodes, db.tombstones, async () => {
+    const all = (await db.countryCodes.toArray()).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const seen = new Set<string>();
+    const extra: string[] = [];
+    for (const c of all) {
+      if (!c.country.trim()) continue; // a row still being filled in is not a repeat
+      const key = `${c.country.trim().toLowerCase()}|${c.accountCode.trim().toLowerCase()}`;
+      if (seen.has(key)) extra.push(c.id);
+      else seen.add(key);
+    }
+    if (!extra.length) return 0;
+    await db.countryCodes.bulkDelete(extra);
+    await recordTombstones(extra.map((recordId) => ({ store: "countryCodes", recordId })));
+    return extra.length;
+  });
 }
 
 export async function listCountryCodes(): Promise<CountryCode[]> {

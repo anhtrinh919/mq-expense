@@ -20,3 +20,9 @@ export function suggestInvoiceNumber(reports: ExpenseReport[], prefix: string, i
   }
   return `${p}${yy}-${maxN + 1}`;
 }
+
+/** True when a saved report already uses this invoice number (ignoring spaces and case). */
+export function isInvoiceNumberUsed(reports: ExpenseReport[], invoiceNumber: string): boolean {
+  const n = invoiceNumber.trim().toLowerCase();
+  return reports.some((r) => r.invoiceNumber.trim().toLowerCase() === n);
+}

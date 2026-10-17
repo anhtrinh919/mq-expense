@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { suggestInvoiceNumber } from "./invoice";
+import { suggestInvoiceNumber, isInvoiceNumberUsed } from "./invoice";
 import type { ExpenseReport } from "../data/types";
 
 function rep(invoiceNumber: string): ExpenseReport {
@@ -29,4 +29,12 @@ describe("suggestInvoiceNumber", () => {
   it("falls back to INV when no prefix is set", () => {
     expect(suggestInvoiceNumber([], "", "2026-06-04")).toBe("INV26-1");
   });
+});
+
+describe("isInvoiceNumberUsed", () => {
+  const reports = [rep("HBEXPENSE26-1"), rep("HBEXPENSE26-2")];
+  it("matches an exact number", () => expect(isInvoiceNumberUsed(reports, "HBEXPENSE26-2")).toBe(true));
+  it("ignores spaces and case", () => expect(isInvoiceNumberUsed(reports, "  hbexpense26-1 ")).toBe(true));
+  it("does not match a new number", () => expect(isInvoiceNumberUsed(reports, "HBEXPENSE26-3")).toBe(false));
+  it("does not match another year", () => expect(isInvoiceNumberUsed(reports, "HBEXPENSE27-1")).toBe(false));
 });
