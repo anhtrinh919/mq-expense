@@ -12,7 +12,7 @@
 
 ### Round 2 — Own details on every invoice, one copy per country, no repeat invoice numbers
 
-Status: building
+Status: checking
 Branch: round-2-report-and-country-fixes, from main
 Try: a peer invoice shows no Hanh data; New report suggests the next number and blocks a used one; each country shows once
 Bugs: invoice template leaks Hanh's details; country codes doubled per device; New report repeats the invoice number
