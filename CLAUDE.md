@@ -22,3 +22,5 @@ Local-first expense tool for a Macquarie SEA sales manager + invited peers. Reac
 - **Master key never goes to the chat transcript** (the auto-mode classifier blocks it, correctly). Read it on the box for backup; don't echo it.
 
 Full deploy/update/validation runbook: `docs/deployment.md`.
+
+This project runs on autoloop. Use `autoloop:round` to continue, never autobuild.
