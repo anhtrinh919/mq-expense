@@ -34,7 +34,7 @@ describe("backup round-trip", () => {
     expect(restored?.amountVND).toBe(921025);
     const orig = await db.images.get(e.originalImageId);
     expect(await orig!.blob.text()).toBe("ORIGINAL-BYTES");
-    expect((await db.countryCodes.count())).toBe(5);
+    expect((await db.countryCodes.count())).toBe(9);
     expect((await db.profile.get("profile"))?.invoicePrefix).toBe("HBEXPENSE");
   });
 
