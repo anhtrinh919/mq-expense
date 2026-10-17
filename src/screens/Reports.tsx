@@ -52,15 +52,14 @@ function Create({ onDone }: { onDone: () => void }) {
 
   const synced = useSyncSignal();
   useEffect(() => {
-    getProfile().then(setProfile);
-    listReports().then(setReports);
+    // Suggest only once profile AND reports are loaded; suggesting from an empty list gave "-1" again.
+    Promise.all([getProfile(), listReports()]).then(([p, r]) => {
+      setProfile(p);
+      setReports(r);
+      setInvoiceNo((cur) => cur || suggestInvoiceNumber(r, p.invoicePrefix, todayISO()));
+    });
     listExpenses({ status: "pending" }).then(setPending);
   }, [synced]);
-
-  // suggested invoice number once profile + reports load
-  useEffect(() => {
-    if (profile && !invoiceNo) setInvoiceNo(suggestInvoiceNumber(reports, profile.invoicePrefix, todayISO()));
-  }, [profile, reports, invoiceNo]);
 
   const inRange = useMemo(
     () => pending.filter((e) => (!start || e.date >= start) && (!end || e.date <= end)).sort((a, b) => (a.date < b.date ? -1 : 1)),

@@ -8,7 +8,7 @@ import { db, withSuppressedStamp } from "../data/db";
 import type { Table } from "dexie";
 import { getAccount, saveAccount, isAuthenticated } from "./authClient";
 import { blobToBase64, base64ToBlob, authHeaders } from "./api";
-import { dedupeCountryCodes } from "../data/repos";
+import { dedupeCountryCodes, seedCountryCodesIfEmpty } from "../data/repos";
 
 type SyncStore = "expenses" | "images" | "reports" | "profile" | "countryCodes";
 const STORES: SyncStore[] = ["profile", "countryCodes", "expenses", "images", "reports"];
@@ -99,9 +99,11 @@ export async function syncNow(): Promise<void> {
   try {
     await push();
     await pull();
-    // Older builds seeded country codes with random ids per device; remove the repeats and push the deletes.
-    if ((await dedupeCountryCodes()) > 0) {
-      pending = true;
+    // Seed defaults only after a pull finds none, so they never race the account's real codes.
+    // Older builds seeded random ids per device; remove those repeats and push the deletes.
+    const seeded = await seedCountryCodesIfEmpty();
+    if ((await dedupeCountryCodes()) > 0 || seeded) {
+      await push();
       emitSynced();
     }
   } catch (e) {

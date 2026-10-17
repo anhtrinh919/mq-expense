@@ -112,6 +112,9 @@ def generate_expense_xlsx(rows, out_path, period_label, base_currency="VND"):
     return grand
 
 
+MQ_ADDRESS = ["Ground Floor,", "8 Sir Christopher Ondaatje Ave", "NSW 2109 AUSTRALIA"]
+
+
 # ── Invoice XLSX — fill the bundled template from the profile ────────────────
 def generate_invoice(job, total, out_path):
     tmpl = job["invoiceTemplate"]
@@ -154,7 +157,8 @@ def generate_invoice(job, total, out_path):
     setc("D8", p.get("vendorId"))
     # Invoice-to block
     setc("A11", to.get("name"))
-    addr_lines = [l for l in (to.get("address", "") or "").split("\n") if l.strip()]
+    # Macquarie's public address is the default recipient; it is not anyone's personal data.
+    addr_lines = [l for l in (to.get("address", "") or "").split("\n") if l.strip()] or MQ_ADDRESS
     for i in range(3):
         setc(f"A{12 + i}", addr_lines[i] if i < len(addr_lines) else None)
     setc("A15", to.get("email"))

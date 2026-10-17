@@ -66,6 +66,7 @@ export default function ProfilePage() {
     await saveProfile(profile);
     for (const c of codes) if (touchedCodes.current.has(c.id)) await upsertCountryCode(c);
     touchedCodes.current.clear();
+    listCountryCodes().then(setCodes);
     clearDraft(DRAFT_KEY);
     dirty.current = false;
     setRestored(false);

@@ -11,7 +11,7 @@ import generate_report  # noqa: E402
 
 TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "expense_invoice_template.xlsx")
 HANH = ["Bui Hong Hanh", "Hanh Bui", "Ecopark", "Solforest", "160000", "139927", "h.bui@", "BUI HONG HANH",
-        "10844397", "ASCBVNVX", "ACB", "Ground Floor", "Ondaatje", "NSW 2109", "HBEXPENSE25", "Dec 2025", "39094540"]
+        "10844397", "ASCBVNVX", "ACB", "HBEXPENSE25", "Dec 2025", "39094540"]
 
 
 def peer_job(**submitter):
@@ -53,6 +53,13 @@ class InvoiceTest(unittest.TestCase):
         a1 = self.fill(peer_job())["A1"]
         self.assertTrue(a1.startswith("Rizky Pratama"))
         self.assertTrue(a1.rstrip().endswith("Invoice"))
+
+    def test_empty_recipient_address_falls_back_to_macquarie(self):
+        job = peer_job()
+        job["profile"]["invoiceTo"]["address"] = ""
+        c = self.fill(job)
+        self.assertEqual([c.get("A12"), c.get("A13"), c.get("A14")],
+                         ["Ground Floor,", "8 Sir Christopher Ondaatje Ave", "NSW 2109 AUSTRALIA"])
 
     def test_total_labels_use_profile_currency(self):
         c = self.fill(peer_job())

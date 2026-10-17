@@ -70,8 +70,8 @@ const SEED_CODES: Array<Omit<CountryCode, "id">> = [
 export async function seedCountryCodesIfEmpty(): Promise<boolean> {
   const count = await db.countryCodes.count();
   if (count > 0) return false;
-  // Fixed ids: every device seeds the same rows, so sync merges them instead of doubling them.
-  await db.countryCodes.bulkPut(SEED_CODES.map((c) => ({ ...c, id: `cc_seed_${c.sortOrder}` })));
+  // Fixed ids, so devices seed the same rows; updatedAt 1, so any real edit wins last-write-wins sync.
+  await db.countryCodes.bulkPut(SEED_CODES.map((c) => ({ ...c, id: `cc_seed_${c.sortOrder}`, updatedAt: 1 })));
   return true;
 }
 
@@ -101,7 +101,8 @@ export async function listCountryCodes(): Promise<CountryCode[]> {
 }
 
 export async function upsertCountryCode(c: CountryCode): Promise<void> {
-  await db.countryCodes.put(c);
+  // Explicit stamp: a row re-added after a delete would otherwise keep its old time and never sync.
+  await db.countryCodes.put({ ...c, updatedAt: Date.now() });
 }
 
 /** Record a delete so it propagates to the server and other devices. */

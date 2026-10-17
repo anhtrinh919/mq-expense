@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "./db";
 import {
-  seedCountryCodesIfEmpty, listCountryCodes, dedupeCountryCodes, getProfile, saveProfile, emptyProfile,
+  seedCountryCodesIfEmpty, listCountryCodes, dedupeCountryCodes, upsertCountryCode, getProfile, saveProfile, emptyProfile,
   createExpense, listExpenses, deleteExpense, getImageById,
   saveReport, markReportPaid, deleteReport,
 } from "./repos";
@@ -105,6 +105,17 @@ describe("repos", () => {
     await clearAll();
     await seedCountryCodesIfEmpty();
     expect((await listCountryCodes()).map((c) => c.id)).toEqual(first);
+  });
+
+  it("stamps default codes as oldest, so any real edit wins sync", async () => {
+    await seedCountryCodesIfEmpty();
+    expect((await listCountryCodes()).every((c) => c.updatedAt === 1)).toBe(true);
+  });
+
+  it("stamps the current time when a code is saved, even one re-added after a delete", async () => {
+    const before = Date.now();
+    await upsertCountryCode({ id: "cc_x", country: "Vietnam", accountCode: "8741/4105", sortOrder: 0, updatedAt: 5 });
+    expect((await db.countryCodes.get("cc_x"))!.updatedAt!).toBeGreaterThanOrEqual(before);
   });
 
   it("dedupes doubled country codes, keeping the smallest id, and syncs the deletes", async () => {
