@@ -12,11 +12,14 @@
 
 ### Round 2 — Own details on every invoice, one copy per country, no repeat invoice numbers
 
-Status: building
+Status: kept
 Branch: round-2-report-and-country-fixes, from main
 Try: a peer invoice shows no Hanh data; New report suggests the next number and blocks a used one; each country shows once
-Bugs: invoice template leaks Hanh's details; country codes doubled per device; New report repeats the invoice number
+Bugs: invoice template leaks Hanh's details; country codes doubled per device; New report repeats the invoice number; non-VND screens show "null IDR" and ₫
 Risk: user data
+
+Result: invoices carry only the sender's details and currency. Country repeats removed after sync (18 → 9). Used invoice numbers are blocked. Screens show the user's own currency. 44 app tests and 5 invoice tests pass.
+Learned: fixed seed ids need the oldest timestamp, or they overwrite real edits. Seed only after the first pull. A template file can hide real personal data.
 
 ### Round 1 — Codebase review: find and rank real bugs, security gaps, and dead code
 

@@ -61,6 +61,11 @@ Scenarios:
 - Report download is one zip, built in the browser — avoids Chrome's multi-file prompt, before round 1
 - Hosted on homepc (WSL) behind a Cloudflare tunnel, as a systemd service — before round 1
 - Old autobuild phase specs live in `archive/autobuild/` — history only, round 1
+- Invoice template holds no personal data; every field comes from the sender's Profile — round 2
+- Invoice header uses the optional Profile "Business name", else the full name — round 2
+- Default country codes have fixed ids and are seeded only after the first sync — round 2
+- Repeat country codes are removed after each sync, keeping the smallest id — round 2
+- Every amount on screen shows the user's base currency — round 2
 
 ## How to run
 
