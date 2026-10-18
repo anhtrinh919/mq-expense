@@ -40,6 +40,8 @@ Scenarios:
 - A crumpled Vietnamese restaurant bill in VND → correct date and total, currency VND.
 - A Thai taxi receipt in Thai script → correct date and total in THB.
 - A blurry or non-receipt photo → no guess; the user enters date and amount by hand.
+- A Viettel e-invoice PDF in Vietnamese → correct issue date and total, currency VND.
+- The reader is logged out → the user sees "Auto-read is offline" and enters date and amount by hand.
 
 ## Not doing
 
@@ -66,6 +68,7 @@ Scenarios:
 - Default country codes have fixed ids and are seeded only after the first sync — round 2
 - Repeat country codes are removed after each sync, keeping the smallest id — round 2
 - Every amount on screen shows the user's base currency — round 2
+- The receipt reader logs in with a long-lived token in the server env file — round 3
 
 ## How to run
 
