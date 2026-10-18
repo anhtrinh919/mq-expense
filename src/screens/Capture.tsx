@@ -129,6 +129,7 @@ export default function Capture() {
       setQueue((q) => q.map((it) => it.id === id ? {
         ...it,
         status: lowconf ? "lowconf" : "ready",
+        error: res.error,
         bwScan: res.bwScan,
         date: it.date || r.date || "",
         amount: it.amount || (r.amount != null ? String(r.amount) : ""),
@@ -551,7 +552,7 @@ export default function Capture() {
 
       {restored && <Banner kind="attention" title="Restored your in-progress receipts" body="Picked up where you left off before the page reloaded." />}
       {current?.status === "lowconf" && (
-        <Banner kind="attention" title="Couldn't read every field" body="Check the receipt on the left and fill in anything blank." />
+        <Banner kind="attention" title="Couldn't read every field" body={current.error || "Check the receipt on the left and fill in anything blank."} />
       )}
       {current?.status === "error" && (
         <Banner kind="error" title="This file couldn't be read" body={current.error} action={<button className="btn" onClick={() => current && removeItem(current.id)}>Remove from queue</button>} />
