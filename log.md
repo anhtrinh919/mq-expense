@@ -10,6 +10,14 @@
 
 ## Rounds
 
+### Round 3 — Receipt auto-read works again, and says when it is offline
+
+Status: building
+Branch: round-3-receipt-reader-offline, from main
+Try: four Viettel PDFs and one photo auto-read on the live site; a logged-out reader shows an "offline" banner
+Bugs: user report "the app can't read PDFs" (cause: expired `claude` login on homepc)
+Risk: none
+
 ### Round 2 — Own details on every invoice, one copy per country, no repeat invoice numbers
 
 Status: kept
