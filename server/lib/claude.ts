@@ -5,6 +5,8 @@ export interface Reading {
   amount: number | null;
   currency: string | null;
   confidence: "high" | "low";
+  /** The CLI itself failed (e.g. expired login), so nothing was read. */
+  offline?: true;
 }
 
 let cachedReader: "claude" | "unavailable" | null = null;
@@ -36,12 +38,23 @@ export async function readReceipt(imagePath: string): Promise<Reading> {
     ["-p", "--model", "sonnet", "--output-format", "json", "--permission-mode", "bypassPermissions", PROMPT + imagePath],
     { timeoutMs: 60_000 },
   );
-  if (r.code !== 0) return { date: null, amount: null, currency: null, confidence: "low" };
+  if (r.code !== 0) {
+    console.error(`[receipt] claude CLI exited ${r.code}: ${r.stderr.trim().slice(0, 300)}`);
+    return { date: null, amount: null, currency: null, confidence: "low" };
+  }
+  return parseCliOutput(r.stdout);
+}
 
+/** Turns the CLI's stdout into a Reading. An error envelope exits 0, so it is checked here. */
+export function parseCliOutput(stdout: string): Reading {
   // The CLI envelope is JSON with a `result` string holding the model's text.
-  let text = r.stdout.trim();
+  let text = stdout.trim();
   try {
     const env = JSON.parse(text);
+    if (env?.is_error) {
+      console.error(`[receipt] claude CLI error: ${String(env.result).slice(0, 300)}`);
+      return { date: null, amount: null, currency: null, confidence: "low", offline: true };
+    }
     if (typeof env?.result === "string") text = env.result;
   } catch {
     /* not an envelope — treat stdout as the text */

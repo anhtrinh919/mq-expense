@@ -34,9 +34,12 @@ MQX_MANAGER_EMAIL=<manager email>
 MQX_MANAGER_NAME=<manager name>
 MQX_MANAGER_PIN=<initial PIN, changeable in-app after first login>
 PATH=/home/tuana/.local/bin:/usr/local/bin:/usr/bin:/bin
+CLAUDE_CODE_OAUTH_TOKEN=<from `claude setup-token`, valid one year>
 ```
 
 `PATH` includes `/home/tuana/.local/bin` so the service can find the `claude` CLI for receipt reading.
+
+`CLAUDE_CODE_OAUTH_TOKEN` logs that CLI in. Without it, the CLI uses tuana's normal login, which expired once (Aug–Oct 2026) and silently stopped every receipt read. A dead login now shows users "Auto-read is offline", and logs `[receipt] claude CLI error: ...` (`journalctl -u mq-expense | grep receipt`). Renew yearly: run `claude setup-token` on homepc, replace the line, restart the service.
 
 ## First deploy (one time)
 

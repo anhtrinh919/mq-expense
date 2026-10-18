@@ -10,6 +10,17 @@
 
 ## Rounds
 
+### Round 3 — Receipt auto-read works again, and says when it is offline
+
+Status: kept
+Branch: round-3-receipt-reader-offline, from main
+Try: four Viettel PDFs and one photo auto-read on the live site; a logged-out reader shows an "offline" banner
+Bugs: user report "the app can't read PDFs" (cause: expired `claude` login on homepc)
+Risk: none
+
+Result: PDFs were never the problem. The live box's `claude` login expired around 8 Aug, so every receipt read failed. A long-lived token now logs it in. A dead login shows users "Auto-read is offline" and logs the real error. Four Viettel PDFs and one photo read correctly on the live box. 47 tests pass.
+Learned: test the failing case on the live box before believing the user's guess at the cause. The `claude` CLI exits 0 on errors; check `is_error`. A silent fallback hid a two-month outage.
+
 ### Round 2 — Own details on every invoice, one copy per country, no repeat invoice numbers
 
 Status: kept

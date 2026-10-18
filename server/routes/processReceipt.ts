@@ -50,9 +50,12 @@ processReceiptRouter.post("/process-receipt", (req, res) => {
       // 2) Read date/amount/currency via claude -p (held in memory only)
       const reading = await readReceipt(inputPath);
 
+      if (reading.offline) {
+        return res.status(422).json({ error: "Auto-read is offline. Enter the date and amount by hand.", reading, bwScan });
+      }
       const unreadable = reading.amount == null && reading.date == null && reading.currency == null;
       if (unreadable) {
-        return res.status(422).json({ error: "could not read receipt", reading, bwScan });
+        return res.status(422).json({ error: "Nothing on this file could be read. Fill in the details by hand.", reading, bwScan });
       }
       return res.status(200).json({ reading, bwScan });
     } catch {
