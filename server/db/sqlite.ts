@@ -3,8 +3,11 @@
 // AES-256-GCM ciphertext under the account's wrapped DEK (see server/lib/crypto.ts).
 
 import Database from "better-sqlite3";
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import { DB_PATH } from "../lib/env.ts";
 
+mkdirSync(dirname(DB_PATH), { recursive: true }); // a fresh volume has no folder yet
 export const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
