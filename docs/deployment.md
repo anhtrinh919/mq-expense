@@ -1,118 +1,60 @@
-# Deployment — MQ Expense (Phase 4 go-live)
+# Deployment — MQ Expense
 
 Source of truth for running MQ Expense in production. Read this before any deploy or update.
 
-## Target
+## Target (Railway since 2026-10-29)
 
-- **Host:** `homepc` (Tailscale `100.92.37.38`) — WSL2 Ubuntu 24.04 on the always-on Windows PC. Reach it with `ssh tuana@homepc`.
-- **Public URL:** `https://mqexpense.ta-infra.uk` (Cloudflare Tunnel → `http://localhost:8787` on homepc).
-- **Runtime:** Node 24, single-origin (`tsx server/index.ts` serves the built SPA from `dist/` and the API on one port).
-- **Code remote:** private GitHub repo `anhtrinh919/mq-expense`. `main` is the deployable branch.
+- **Public URL:** `https://mqexpense.ta-infra.uk` (Cloudflare CNAME, proxied → `4na84wwj.up.railway.app`). Railway test URL: `https://mq-expense-production.up.railway.app`.
+- **Railway:** project `mq-expense`, service `mq-expense`, environment `production`, region Singapore (`asia-southeast1-eqsg3a`). Hobby plan, account tuananhtrinh919@gmail.com.
+- **Build:** the repo's `Dockerfile` — Node 22, Python venv (`server/python/requirements.txt`), LibreOffice (`soffice`), poppler, fonts, and the `claude` CLI. One process serves `dist/` + the API on Railway's `PORT`.
+- **Volume:** `mq-expense-volume` mounted at `/data`. Live DB at `/data/live/mqx-data.sqlite` (`MQX_DB_PATH`). `/data/hold/` holds a throwaway DB from the first test boot.
+- **Code remote:** private GitHub `anhtrinh919/mq-expense`. Railway deploys from the local folder (`railway up`), not from GitHub.
 
-## Components
+Until 2026-10-29 it ran on homepc (systemd + Cloudflare tunnel). That service is stopped and disabled; its old DB stays at `~/.local/share/mq-expense/` on homepc as a frozen fallback. The tunnel's `mqexpense` ingress rule is unused now.
 
-1. **App service** — systemd unit `mq-expense.service` runs `NODE_ENV=production tsx server/index.ts` on port 8787, restart-on-failure, enabled at boot. Env (including the master key + manager seed) comes from a root-only EnvironmentFile, never from git.
-2. **Cloudflare ingress** — `mqexpense.ta-infra.uk` added as a 5th ingress hostname on the existing `ollama-local` tunnel (`~/.cloudflared/config.yml`), served by the already-running `cloudflared.service`. No new tunnel or login needed (account cert already present).
-3. **Python sidecar** — receipt deskew + report assembly run from a venv at `server/python/.venv` (Pillow, numpy, openpyxl, pypdf, opencv-python-headless, all pinned).
-4. **Receipt auto-read** — shells out to the `claude` CLI on homepc; degrades to manual entry if unavailable.
-5. **LibreOffice (`soffice`)** — system package, NOT a pip dep. The full report's xlsx→PDF step shells out to `soffice --headless`. Without it, report generation fails with "report assembly failed → LibreOffice (soffice) not found". Install once: `sudo apt-get install -y libreoffice-calc`. (The Expenses "Export Excel" path is pure openpyxl and does NOT need it.)
+## Variables (Railway, never in git)
 
-## Persistent state (never in git, never overwritten by a redeploy)
+`MQX_MASTER_KEY`, `MQX_MANAGER_EMAIL`, `MQX_MANAGER_NAME`, `MQX_MANAGER_PIN`, `CLAUDE_CODE_OAUTH_TOKEN`, `MQX_DB_PATH`. `NODE_ENV`, `PYTHON_BIN` and `IS_SANDBOX` are set in the Dockerfile. Read with `railway variable list`.
 
-- **Encryption master key** — `MQX_MASTER_KEY` (64 hex chars = 32 bytes), generated once. Stored in `/etc/mq-expense/mq-expense.env` (mode 600) and backed up off-box by the operator. **If this key is lost, every user's synced data is permanently unreadable.** It is independent of PINs (so a forgotten PIN is still resettable).
-- **Database** — `MQX_DB_PATH=/home/tuana/.local/share/mq-expense/mqx-data.sqlite`, outside the repo so `git pull` / re-clone never touches it. Holds accounts, invites, sessions, and per-user encrypted sync records.
-- **Manager account** — seeded on first boot from `MQX_MANAGER_EMAIL` / `MQX_MANAGER_NAME` / `MQX_MANAGER_PIN`. The manager is never self-registered. Every other account joins by invite only.
+- **Master key:** **if lost, every user's synced data is permanently unreadable.** Off-Railway copy: `~/.local/share/mq-expense/MASTER_KEY_BACKUP.txt` on homepc (and `/etc/mq-expense/mq-expense.env`). It is independent of PINs.
+- **Manager seed:** only used on an empty DB. The real manager PIN has been changed in-app, so `MQX_MANAGER_PIN` is not the current PIN.
+- **`CLAUDE_CODE_OAUTH_TOKEN`:** logs in the receipt reader. A dead login shows users "Auto-read is offline" and logs `[receipt] claude CLI error`. Renew yearly: `claude setup-token`, then `railway variable set CLAUDE_CODE_OAUTH_TOKEN --stdin`.
+- **`IS_SANDBOX=1`:** the container runs as root; the `claude` CLI refuses `bypassPermissions` as root without it.
 
-## Environment file (`/etc/mq-expense/mq-expense.env`, mode 600)
-
-```
-NODE_ENV=production
-PORT=8787
-MQX_DB_PATH=/home/tuana/.local/share/mq-expense/mqx-data.sqlite
-MQX_MASTER_KEY=<64 hex chars, generated once — back this up>
-MQX_MANAGER_EMAIL=<manager email>
-MQX_MANAGER_NAME=<manager name>
-MQX_MANAGER_PIN=<initial PIN, changeable in-app after first login>
-PATH=/home/tuana/.local/bin:/usr/local/bin:/usr/bin:/bin
-CLAUDE_CODE_OAUTH_TOKEN=<from `claude setup-token`, valid one year>
-```
-
-`PATH` includes `/home/tuana/.local/bin` so the service can find the `claude` CLI for receipt reading.
-
-`CLAUDE_CODE_OAUTH_TOKEN` logs that CLI in. Without it, the CLI uses tuana's normal login, which expired once (Aug–Oct 2026) and silently stopped every receipt read. A dead login now shows users "Auto-read is offline", and logs `[receipt] claude CLI error: ...` (`journalctl -u mq-expense | grep receipt`). Renew yearly: run `claude setup-token` on homepc, replace the line, restart the service.
-
-## First deploy (one time)
-
-1. `git clone git@github.com:anhtrinh919/mq-expense.git ~/dev/mq-expense` on homepc.
-2. `npm ci` (compiles better-sqlite3 against Node 24).
-3. `python3 -m venv server/python/.venv && server/python/.venv/bin/pip install -r server/python/requirements.txt`. Point the server at it with `PYTHON_BIN=server/python/.venv/bin/python` (add to the env file). Also `sudo apt-get install -y libreoffice-calc` — the report's xlsx→PDF step needs `soffice`.
-4. `npm run build` → `dist/`.
-5. Create `/etc/mq-expense/mq-expense.env` (above), generate the master key with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
-6. Install `mq-expense.service`, `systemctl enable --now mq-expense`.
-7. Add the `mqexpense.ta-infra.uk` ingress rule to `~/.cloudflared/config.yml`, run `cloudflared tunnel route dns ollama-local mqexpense.ta-infra.uk`, `systemctl restart cloudflared`.
-8. Verify (see Validation).
-
-## Update workflow (every future change)
-
-Run all steps in order. Each step must succeed before the next one.
+## Update workflow
 
 ```bash
-# 1. On the dev Mac — finish and push the commit
+npm run typecheck && npm test
 git push origin main
-
-# 2. SSH to the production host
-ssh tuana@homepc
-
-# 3. Pull, install, build, restart (run as tuana, sudo only for the restart)
-cd ~/dev/mq-expense
-git pull                          # confirm the expected commit SHA lands
-npm ci                            # only needed when package-lock changed; safe to always run
-npm run build                     # builds the SPA into dist/ (~1-2 s)
-sudo systemctl restart mq-expense # service comes back in < 2 s
-
-# 4. Verify the service came up
-systemctl is-active mq-expense    # must print "active"
-journalctl -u mq-expense -n 5 --no-pager   # last line: "API + app listening on …:8787"
-```
-
-Then do a quick smoke test from a separate device (or curl from the Mac):
-
-```bash
+railway up -d -m "<commit subject>"
+railway service status            # wait for SUCCESS
+railway logs --lines 20           # "API + app listening on …"
 curl -sf https://mqexpense.ta-infra.uk/api/health
 # expected: {"status":"ok","reader":"claude","store":"ok"}
 ```
 
-(The DB and env file live outside the repo, so a pull/rebuild never disturbs user data or the key.)
+Each deploy has a few seconds of downtime (volume). The app is local-first, so phones keep entries and sync later.
 
-### One-liner (if you trust the build)
+## Backups
+
+- The server writes `VACUUM INTO /data/live/backups/mqx-YYYY-MM-DD.sqlite` once per Vietnam day (`server/lib/backup.ts`, production only) and keeps the newest 7.
+- homepc pulls them daily at 04:30 Vietnam time: user timer `mq-expense-backup.timer` runs `~/apps/mq-expense-backup/pull-backup.sh` (source: `scripts/pull-backup.sh`, units in `deploy/`). Copies land in `~/backups/mq-expense/`, newest 30 kept.
+- Railway volume backups (dashboard → volume → Backups) are optional on top.
+
+## Operator tasks
 
 ```bash
-ssh tuana@homepc "cd ~/dev/mq-expense && git pull && npm ci && npm run build && sudo systemctl restart mq-expense && sleep 2 && systemctl is-active mq-expense"
+# Forgotten PIN / add an account — run inside the container (env already set)
+env -u RAILWAY_API_TOKEN railway ssh -- 'cd /app && node_modules/.bin/tsx server/scripts/reset-pin.ts <email> <newPin>'
+env -u RAILWAY_API_TOKEN railway ssh -- 'cd /app && node_modules/.bin/tsx server/scripts/add-account.ts <email> <name> <pin> [manager|peer]'
 ```
 
-### If the service fails to start
+- **Restore a backup:** never overwrite the live file (old `-wal` files would replay onto it). Upload the copy into a fresh folder (`railway volume files --volume mq-expense-volume upload <file> restore-<date>/mqx-data.sqlite`), then `railway variable set MQX_DB_PATH=/data/restore-<date>/mqx-data.sqlite`.
+- **Logs:** `railway logs --lines 200`. **Rollback code:** check out the old commit, `railway up -d`. A rollback never restores data.
 
-```bash
-journalctl -u mq-expense -n 30 --no-pager   # read the error
-# Common causes:
-#   - syntax error in a new server file  → check the tsx output
-#   - missing env var in /etc/mq-expense/mq-expense.env
-#   - port 8787 already bound (stale process) → sudo pkill -f "tsx server/index"
-sudo systemctl start mq-expense   # try again after fixing
-```
+## Validation
 
-## Validation (go-live is done only when all pass)
-
-- [ ] `https://mqexpense.ta-infra.uk` loads the login screen over HTTPS from a device **not** on the tailnet (phone on cellular).
-- [ ] Manager can log in with the seeded email + PIN; can generate an invite link.
-- [ ] A second person can open the invite link, create an account, and capture an expense; the manager cannot see that expense (isolation holds).
-- [ ] Capturing a receipt auto-reads date + amount (claude CLI reachable from the service).
-- [ ] `sudo systemctl restart mq-expense` brings it back with all data intact (DB persisted).
-- [ ] A full WSL/PC reboot brings both `cloudflared` and `mq-expense` back automatically.
-- [ ] The master key is backed up off-box by the operator.
-
-## Recovery notes
-
-- **Forgotten PIN:** operator runs `tsx server/scripts/reset-pin.ts <email> <newPin>` on homepc. No email, no in-app reset.
-- **Key loss = data loss:** there is no recovery path if `MQX_MASTER_KEY` is lost. Back it up.
-- **Logs:** `journalctl -u mq-expense -f` and `journalctl -u cloudflared -f`.
+- [x] Health, login screen, receipt auto-read and full PDF report work on Railway (2026-10-29).
+- [x] All 467 live records decrypt with the Railway master key (0 failures).
+- [ ] Manager logs in on a phone with their real PIN and sees their data.
+- [ ] First nightly pull lands in `~/backups/mq-expense/` on homepc.
