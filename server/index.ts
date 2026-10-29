@@ -1,7 +1,9 @@
 import express from "express";
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
-import { SERVER_DIR, PORT } from "./lib/env.ts";
+import { dirname, resolve } from "node:path";
+import { SERVER_DIR, PORT, IS_PROD, DB_PATH } from "./lib/env.ts";
+import { db } from "./db/sqlite.ts";
+import { startBackups } from "./lib/backup.ts";
 import { healthRouter } from "./routes/health.ts";
 import { fxRouter } from "./routes/fx.ts";
 import { processReceiptRouter } from "./routes/processReceipt.ts";
@@ -22,6 +24,8 @@ app.use(express.json({ limit: "200mb" }));
 
 // Seed the single manager account from env on boot (idempotent).
 seedManager();
+
+if (IS_PROD) startBackups(db, resolve(dirname(DB_PATH), "backups"));
 
 // ---- Public routes (no session needed) ----
 app.use("/api", healthRouter);

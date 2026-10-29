@@ -1,0 +1,9 @@
+[Unit]
+Description=Pull MQ Expense's backup daily at 04:30 Vietnam time
+
+[Timer]
+OnCalendar=*-*-* 04:30:00 Asia/Ho_Chi_Minh
+Persistent=true
+
+[Install]
+WantedBy=timers.target

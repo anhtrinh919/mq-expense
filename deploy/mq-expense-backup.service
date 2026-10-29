@@ -1,0 +1,6 @@
+[Unit]
+Description=Pull MQ Expense's nightly backup from Railway
+
+[Service]
+Type=oneshot
+ExecStart=%h/apps/mq-expense-backup/pull-backup.sh
