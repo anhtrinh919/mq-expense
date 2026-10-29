@@ -74,24 +74,23 @@ Two configs: `tsconfig.json` (client, bundled by Vite, `"module": "ESNext"`) and
 
 Vitest. `src/test/setup.ts` installs `fake-indexeddb/auto` so Dexie tests run in Node without a browser. Test files are co-located with the source files they test (`.test.ts` suffix).
 
-## Production (live since 2026-06-05)
+## Production (Railway since 2026-10-29)
 
-- **URL:** https://mqexpense.ta-infra.uk
-- **Host:** Tailscale node `homepc` (100.92.37.38) — WSL2 Ubuntu on the always-on Windows PC. Reach it with `ssh tuana@homepc`. The Unix user is **`tuana`**, not your local username; plain `ssh homepc` fails. (The node `homepc-1` is the Windows side and is often offline — don't use it.)
-- **Service:** systemd `mq-expense.service` (User=tuana, port 8787, single-origin: serves `dist/` + API on one port). Logs: `journalctl -u mq-expense -f`.
-- **Public access:** a 5th ingress hostname on the shared `cloudflared.service` tunnel (UUID `644dacd1…`). Config: `~/.cloudflared/config.yml`. The Cloudflare account is already logged in there (`cert.pem`) — no re-login needed to add hostnames. To add a site: append an ingress rule (before the `http_status:404` catch-all), `cloudflared tunnel route dns <uuid> <host>`, then SIGHUP cloudflared (`sudo pkill -HUP -f 'cloudflared tunnel'` — the unit has no ExecReload).
-- **Secrets/state, all OUTSIDE git:** master key + manager seed in `/etc/mq-expense/mq-expense.env` (root, 600); operator key backup at `~/.local/share/mq-expense/MASTER_KEY_BACKUP.txt` (tuana, 600); DB at `~/.local/share/mq-expense/mqx-data.sqlite`. **Losing the master key = every user's synced data is permanently unrecoverable** (it's independent of PINs, so PIN reset is still possible).
-- **Code remote:** private GitHub `anhtrinh919/mq-expense`; `main` deploys. Update: `cd ~/dev/mq-expense && git pull && npm ci && npm run build && sudo systemctl restart mq-expense`. The DB + env file live outside the repo, so pull/rebuild never disturbs them.
+- **URL:** https://mqexpense.ta-infra.uk → Railway project `mq-expense`, Singapore. Deploy: `railway up -d -m "<subject>"`. Logs: `railway logs`. Build is the repo `Dockerfile` (Node 22, Python venv, LibreOffice, `claude` CLI).
+- **Data:** volume `/data`, live DB `/data/live/mqx-data.sqlite` (`MQX_DB_PATH`). Nightly copy kept 7 days (`server/lib/backup.ts`); homepc pulls it to `~/backups/mq-expense` (30 kept) via user timer `mq-expense-backup.timer`.
+- **Secrets:** Railway variables. Master key backup still on homepc at `~/.local/share/mq-expense/MASTER_KEY_BACKUP.txt`. **Losing it = all synced data unreadable** (independent of PINs, so PIN reset still works).
+- **homepc:** reach with `ssh tuana@homepc` (user `tuana`; plain `ssh homepc` fails). The old `mq-expense.service` is disabled and its DB kept as a frozen fallback.
+- **Code remote:** private GitHub `anhtrinh919/mq-expense`. Push with `git -c credential.helper='!gh auth git-credential' push` (plain https push has no login).
 
 ## Gotchas
 
-- **Accounts are invite-only; managers are operator-seeded only.** First manager via `MQX_MANAGER_*` env on first boot; additional accounts via `tsx server/scripts/add-account.ts <email> <name> <pin> [manager|peer]` (needs `MQX_MASTER_KEY` + `MQX_DB_PATH` in env). Two managers seeded in prod: `tuananhtrinh919@gmail.com` and `hanhbh.213@gmail.com`.
-- **Forgotten PIN:** `tsx server/scripts/reset-pin.ts <email> <newPin>` on homepc. No email, no in-app reset (by design).
-- **Python deps:** numpy is capped at **2.2.6** by opencv-python-headless 4.12 on linux/cp312 (2.4.x is unsatisfiable). Deps live in a venv at `server/python/.venv`; the service points at it via `PYTHON_BIN`.
-- **Receipt auto-read shells out to the `claude` CLI.** The systemd `PATH` must include `/home/tuana/.local/bin` or it silently degrades to manual date/amount entry. Its login is `CLAUDE_CODE_OAUTH_TOKEN` in the env file (from `claude setup-token`). When the login dies, users see "Auto-read is offline" and the journal logs `[receipt] claude CLI error`.
-- **Full report generation needs LibreOffice (`soffice`) on the box** — a system package, not a pip dep, so it's easily missed (only the venv is documented). The report's xlsx→PDF step shells out to `soffice --headless`; without it the report fails with "report assembly failed". Install: `sudo apt-get install -y libreoffice-calc`. The Expenses "Export Excel" button (`/api/export-expenses-xlsx`, pure openpyxl) does NOT need it.
-- **Reboot survival:** the systemd service is enabled, so it returns when WSL/systemd starts. Full PC-reboot survival depends on WSL auto-starting on Windows boot — the long-lived ollama tunnel on the same box suggests that's already configured; confirm after the next real reboot.
-- **Master key never goes to the chat transcript** (the auto-mode classifier blocks it, correctly). Read it on the box for backup; don't echo it.
+- **Accounts are invite-only; managers are operator-seeded only.** First manager via `MQX_MANAGER_*` on an empty DB (the seed PIN is NOT the current PIN). More accounts: `env -u RAILWAY_API_TOKEN railway ssh -- 'cd /app && node_modules/.bin/tsx server/scripts/add-account.ts <email> <name> <pin> [manager|peer]'`. Two managers in prod: `tuananhtrinh919@gmail.com` and `hanhbh.213@gmail.com`.
+- **Forgotten PIN:** same `railway ssh` form with `server/scripts/reset-pin.ts <email> <newPin>`. No email, no in-app reset (by design).
+- **Python deps:** numpy is capped at **2.2.6** by opencv-python-headless 4.12 (2.4.x is unsatisfiable). The Dockerfile builds the venv at `server/python/.venv`; `PYTHON_BIN` points at it.
+- **Receipt auto-read shells out to the `claude` CLI.** Its login is the `CLAUDE_CODE_OAUTH_TOKEN` variable (from `claude setup-token`, valid a year). The container runs as root, so `IS_SANDBOX=1` is needed for `bypassPermissions`. When the login dies, users see "Auto-read is offline" and logs show `[receipt] claude CLI error`.
+- **Full report generation needs LibreOffice (`soffice`)** — installed by the Dockerfile, not pip. Without it the report fails with "report assembly failed". The "Export Excel" button (pure openpyxl) does NOT need it.
+- **Restoring a DB:** never overwrite the live SQLite file (old `-wal` files replay onto it). Upload into a fresh folder and switch `MQX_DB_PATH`. See `docs/deployment.md`.
+- **Master key never goes to the chat transcript** (the auto-mode classifier blocks it, correctly). Pipe it with `--stdin`; don't echo it.
 
 Full deploy/update/validation runbook: `docs/deployment.md`.
 
