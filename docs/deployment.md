@@ -56,5 +56,5 @@ env -u RAILWAY_API_TOKEN railway ssh -- 'cd /app && node_modules/.bin/tsx server
 
 - [x] Health, login screen, receipt auto-read and full PDF report work on Railway (2026-10-29).
 - [x] All 467 live records decrypt with the Railway master key (0 failures).
-- [ ] Manager logs in on a phone with their real PIN and sees their data.
-- [ ] First nightly pull lands in `~/backups/mq-expense/` on homepc.
+- [x] Manager logs in on a phone with their real PIN and sees their data.
+- [x] First pull landed in `~/backups/mq-expense/` on homepc (intact, 551 records).
