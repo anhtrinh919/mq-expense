@@ -8,6 +8,8 @@ import { syncNow, onSessionEnded } from "./sync";
 // In-memory mock of the server's sync store, with the same last-write-wins behavior.
 const server = new Map<string, { store: string; recordId: string; updatedAt: number; deleted: boolean; data: unknown }>();
 
+let pageSize = 0; // 0 = send everything in one pull
+
 function mockFetch(url: string, init?: RequestInit): Promise<Response> {
   const u = new URL(url, "http://localhost");
   if (u.pathname === "/api/sync" && init?.method === "POST") {
@@ -22,8 +24,11 @@ function mockFetch(url: string, init?: RequestInit): Promise<Response> {
   if (u.pathname === "/api/sync") {
     const since = Number(u.searchParams.get("since") ?? 0);
     const recs = [...server.values()].filter((r) => r.updatedAt > since).sort((a, b) => a.updatedAt - b.updatedAt);
-    const cursor = recs.reduce((m, r) => Math.max(m, r.updatedAt), since);
-    return jsonRes({ records: recs.map((r) => ({ store: r.store, recordId: r.recordId, updatedAt: r.updatedAt, deleted: r.deleted, data: r.deleted ? null : r.data })), cursor });
+    // Like the real server: a page of pageSize, plus records sharing the last timestamp.
+    const last = recs[pageSize - 1]?.updatedAt;
+    const page = pageSize && last !== undefined ? recs.filter((r) => r.updatedAt <= last) : recs;
+    const cursor = page.reduce((m, r) => Math.max(m, r.updatedAt), since);
+    return jsonRes({ more: page.length < recs.length, records: page.map((r) => ({ store: r.store, recordId: r.recordId, updatedAt: r.updatedAt, deleted: r.deleted, data: r.deleted ? null : r.data })), cursor });
   }
   return jsonRes({}, 404);
 }
@@ -38,6 +43,7 @@ function blob(text: string): Blob {
 
 beforeEach(async () => {
   server.clear();
+  pageSize = 0;
   vi.stubGlobal("fetch", vi.fn(mockFetch));
   await wipeWorkspace();
   await saveAccount({ accountId: "acc1", email: "a@x.test", name: "A", role: "peer", sessionToken: "tok", pullCursor: 0, pushHigh: 0 });
@@ -99,5 +105,44 @@ describe("ended login", () => {
     expect(told).toHaveBeenCalledOnce();
     expect((await getAccount()).sessionToken).toBeNull();
     expect(await db.expenses.count()).toBe(1);
+  });
+});
+
+describe("first download on a new device", () => {
+  async function seedServerThenFreshDevice() {
+    for (const d of ["a", "b", "c"]) {
+      await createExpense(
+        { date: "2026-06-01", description: d, amountVND: 1, originalAmount: null, originalCurrency: null, exchangeRate: null, rateSource: "", country: "Vietnam", accountCode: "VN", notes: "" } as never,
+        { mimeType: "image/png", blob: blob("O") },
+        { mimeType: "image/png", blob: blob("B") },
+      );
+      await new Promise((r) => setTimeout(r, 2)); // distinct timestamps
+    }
+    await syncNow();
+    await wipeWorkspace();
+    await saveAccount({ pullCursor: 0, pushHigh: 0 });
+  }
+
+  it("keeps asking until the server has sent every page", async () => {
+    await seedServerThenFreshDevice();
+    pageSize = 2;
+    expect(await syncNow()).toBe(true);
+    expect(await db.expenses.count()).toBe(3);
+    expect(await db.images.count()).toBe(6);
+  });
+
+  it("a second caller waits for a sync that has the data, not an empty early return", async () => {
+    await seedServerThenFreshDevice();
+    const first = syncNow();
+    const second = syncNow(); // e.g. the login screen, while the background sync runs
+    expect(await second).toBe(true);
+    expect(await db.expenses.count()).toBe(3);
+    await first;
+  });
+
+  it("reports a failed download", async () => {
+    await seedServerThenFreshDevice();
+    vi.stubGlobal("fetch", vi.fn(() => jsonRes({}, 502)));
+    expect(await syncNow()).toBe(false);
   });
 });

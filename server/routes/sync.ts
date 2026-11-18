@@ -25,17 +25,24 @@ interface IncomingRecord {
 
 export const syncRouter = Router();
 
-/** Pull every record for this account changed after the cursor. */
+// A first pull can hold hundreds of receipt images (200MB+), too much for one phone download.
+// So a pull returns about PULL_PAGE records, plus any that share the last timestamp, so the
+// cursor never splits a timestamp. The client asks again while `more` is true.
+export const PULL_PAGE = 20;
+export const PULL_PAGE_SQL = `
+  SELECT store, record_id, data, updated_at, deleted FROM sync_records
+  WHERE account_id = @acc AND updated_at > @since AND updated_at <= COALESCE(
+    (SELECT updated_at FROM sync_records WHERE account_id = @acc AND updated_at > @since
+     ORDER BY updated_at ASC LIMIT 1 OFFSET @skip), 9e18)
+  ORDER BY updated_at ASC`;
+
+/** Pull the next page of records for this account changed after the cursor. */
 syncRouter.get("/sync", (req, res) => {
   const account = (req as AuthedRequest).account;
   const since = Number(req.query.since ?? 0) || 0;
   const dek = unwrapDek(account.enc_dek);
 
-  const rows = db
-    .prepare(
-      "SELECT store, record_id, data, updated_at, deleted FROM sync_records WHERE account_id = ? AND updated_at > ? ORDER BY updated_at ASC",
-    )
-    .all(account.id, since) as SyncRow[];
+  const rows = db.prepare(PULL_PAGE_SQL).all({ acc: account.id, since, skip: PULL_PAGE - 1 }) as SyncRow[];
 
   let cursor = since;
   const records = rows.map((r) => {
@@ -49,7 +56,7 @@ syncRouter.get("/sync", (req, res) => {
     };
   });
 
-  res.json({ records, cursor });
+  res.json({ records, cursor, more: rows.length >= PULL_PAGE });
 });
 
 /** Push local changes. Last-write-wins per (store, recordId) by updatedAt. */

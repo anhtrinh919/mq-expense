@@ -70,9 +70,6 @@ export function onSessionEnded(fn: () => void): () => void {
   return () => sessionEndedListeners.delete(fn);
 }
 
-let syncing = false;
-let pending = false;
-
 // Lightweight pub/sub so open screens can re-query when a pull lands new data.
 // Bumps a counter; React screens read it via useSyncSignal() and add it to their load deps.
 let syncTick = 0;
@@ -95,15 +92,24 @@ export function useSyncSignal(): number {
   return useSyncExternalStore(onSynced, syncSignal, syncSignal);
 }
 
-/** Push local changes, then pull remote ones. Safe to call often; coalesces concurrent calls. */
-export async function syncNow(): Promise<void> {
-  const account = await getAccount();
-  if (!isAuthenticated(account)) return;
-  if (syncing) {
-    pending = true;
-    return;
+// One sync runs at a time. A call made while one runs waits for the next full sync,
+// so a caller that awaits always sees the server's data (the login screen relies on this).
+let current: Promise<boolean> | null = null;
+let queued: Promise<boolean> | null = null;
+
+/** Push local changes, then pull remote ones. Resolves true when the sync completed. */
+export function syncNow(): Promise<boolean> {
+  if (!current) {
+    current = runSync().finally(() => { current = null; });
+    return current;
   }
-  syncing = true;
+  queued ??= current.then(() => { queued = null; return syncNow(); });
+  return queued;
+}
+
+async function runSync(): Promise<boolean> {
+  const account = await getAccount();
+  if (!isAuthenticated(account)) return false;
   try {
     await push();
     await pull();
@@ -114,21 +120,17 @@ export async function syncNow(): Promise<void> {
       await push();
       emitSynced();
     }
+    return true;
   } catch (e) {
     if (e instanceof SessionEnded) {
       // The server dropped this login. Keep local data; the next login re-syncs it.
       await saveAccount({ sessionToken: null });
       for (const fn of sessionEndedListeners) fn();
-      return;
+      return false;
     }
     // Network/offline: leave cursors as-is and try again next tick.
     console.warn("[sync] failed, will retry", e);
-  } finally {
-    syncing = false;
-    if (pending) {
-      pending = false;
-      void syncNow();
-    }
+    return false;
   }
 }
 
@@ -166,12 +168,17 @@ async function push(): Promise<void> {
   await saveAccount({ pushHigh: high });
 }
 
+/** Pull page after page until the server has sent everything. Each page saves its cursor. */
 async function pull(): Promise<void> {
+  while (await pullPage());
+}
+
+async function pullPage(): Promise<boolean> {
   const account = await getAccount();
   const res = await fetch(`/api/sync?since=${account.pullCursor}`, { headers: authHeaders() });
   if (res.status === 401) throw new SessionEnded();
   if (!res.ok) throw new Error(`pull failed ${res.status}`);
-  const body = (await res.json()) as { records: WireRecord[]; cursor: number };
+  const body = (await res.json()) as { records: WireRecord[]; cursor: number; more?: boolean };
 
   let maxApplied = account.pushHigh;
   let changed = 0;
@@ -202,6 +209,7 @@ async function pull(): Promise<void> {
   // Advance cursors. pushHigh moves past applied remote writes so we don't echo them back.
   await saveAccount({ pullCursor: body.cursor, pushHigh: maxApplied });
   if (changed > 0) emitSynced(); // let open screens re-query
+  return !!body.more && body.cursor > account.pullCursor;
 }
 
 /** True if there is anything local to push (used to decide first-login migration). */

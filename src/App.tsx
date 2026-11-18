@@ -41,6 +41,7 @@ export default function App() {
   const [locked, setLocked] = useState(false);
   const [migrate, setMigrate] = useState(false);
   const [onboard, setOnboard] = useState(false);
+  const [firstSync, setFirstSync] = useState<"loading" | "failed" | null>(null);
   const inviteToken = inviteTokenFromUrl();
 
   const refresh = useCallback(async () => {
@@ -101,7 +102,14 @@ export default function App() {
       setMigrate(true);
       return;
     }
-    await syncNow();
+    // Wait for the account's data before deciding it is new. A failed download must never
+    // open first-run setup: that would replace the real profile on the server.
+    setFirstSync("loading");
+    if (!(await syncNow())) {
+      setFirstSync("failed");
+      return;
+    }
+    setFirstSync(null);
     const p = await getProfile();
     if (!p.onboardingComplete) {
       setOnboard(true); // brand-new account → run the first-run wizard
@@ -113,9 +121,10 @@ export default function App() {
   async function resolveMigration(bring: boolean) {
     if (!bring) await wipeWorkspace();
     setMigrate(false);
-    await syncNow();
+    const synced = await syncNow();
     const p = await getProfile();
-    if (!p.onboardingComplete) {
+    // Only a completed download proves the account has no profile yet.
+    if (synced && !p.onboardingComplete) {
       const a = await getAccount();
       await saveProfile({ ...p, onboardingComplete: true, submitter: { ...p.submitter, name: p.submitter.name || a.name || "" } });
     }
@@ -142,6 +151,31 @@ export default function App() {
   // Signed in but the app was just opened: quick PIN unlock (local, offline).
   if (locked) {
     return <Login initialMode="unlock" knownName={account.name} knownEmail={account.email} onAuthed={() => { markUnlocked(); setLocked(false); }} />;
+  }
+
+  // Just logged in: the account's data is downloading (a full history can take minutes).
+  if (firstSync) {
+    return (
+      <div className="onb">
+        <div className="onb-card">
+          <div className="onb-brand">MQ Expense</div>
+          <div className="onb-body">
+            {firstSync === "loading" ? (
+              <>
+                <h1 className="onb-title serif">Downloading your expenses…</h1>
+                <p className="onb-sub muted"><span className="spinner" /> This can take a few minutes the first time on a device. Keep this screen open.</p>
+              </>
+            ) : (
+              <>
+                <h1 className="onb-title serif">Couldn't download your data</h1>
+                <p className="onb-sub muted">Your expenses are safe on the server. Check your connection and try again.</p>
+                <button className="btn btn-primary onb-go" onClick={() => void handleAuthed()}>Try again</button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // First login on a device that already has data: offer to bring it in.
