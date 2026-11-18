@@ -50,7 +50,9 @@ export default function Login({
   async function doUnlock(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    const ok = await verifyLocalPin(pin);
+    // The saved PIN goes stale after an admin reset, so a miss falls back to the server.
+    const ok = (await verifyLocalPin(pin)) ||
+      (!!knownEmail && (await login({ email: knownEmail, pin }).then(() => true, () => false)));
     setBusy(false);
     if (ok) onAuthed();
     else {
