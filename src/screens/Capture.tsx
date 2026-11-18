@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ImageOrPdf } from "../components/ReceiptViewer";
 import { useNavigate } from "react-router-dom";
 import { getProfile, listCountryCodes, createExpense } from "../data/repos";
 import { loadCaptureDraft, saveCaptureDraft, clearCaptureDraft } from "../data/captureDraft";
@@ -570,7 +571,7 @@ export default function Capture() {
             <CapturePreview file={current.file} bw={current.bwScan} />
           ) : (
             <div className="rv-reading">
-              <FilePreview file={current!.file} />
+              <ImageOrPdf blob={current!.file} alt="Receipt" />
               {(current?.status === "reading" || current?.status === "queued") && <div className="reading-overlay"><span className="spinner" /> Reading receipt…</div>}
             </div>
           )}
@@ -627,23 +628,9 @@ export default function Capture() {
   );
 }
 
-function FilePreview({ file }: { file: File }) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => { const u = URL.createObjectURL(file); setUrl(u); return () => URL.revokeObjectURL(u); }, [file]);
-  if (!url) return null;
-  if (file.type === "application/pdf") return <iframe className="rv-frame" src={url} title="receipt" />;
-  return <img className="rv-img" src={url} alt="receipt" />;
-}
-
 function CapturePreview({ file, bw }: { file: File; bw: { mimeType: string; dataBase64: string } }) {
   const [view, setView] = useState<"original" | "bwscan">("original");
-  const [bwUrl, setBwUrl] = useState<string | null>(null);
-  useEffect(() => {
-    const blob = base64ToBlob(bw.dataBase64, bw.mimeType);
-    const u = URL.createObjectURL(blob);
-    setBwUrl(u);
-    return () => URL.revokeObjectURL(u);
-  }, [bw]);
+  const bwBlob = useMemo(() => base64ToBlob(bw.dataBase64, bw.mimeType), [bw]);
   return (
     <div className="rv">
       <div className="rv-tabs">
@@ -651,7 +638,7 @@ function CapturePreview({ file, bw }: { file: File; bw: { mimeType: string; data
         <button className={`rv-tab${view === "bwscan" ? " active" : ""}`} onClick={() => setView("bwscan")}>B&amp;W</button>
       </div>
       <div className="rv-stage">
-        {view === "original" ? <FilePreview file={file} /> : bwUrl && (bw.mimeType === "application/pdf" ? <iframe className="rv-frame" src={bwUrl} title="bw" /> : <img className="rv-img" src={bwUrl} alt="bw scan" />)}
+        {view === "original" ? <ImageOrPdf blob={file} alt="Receipt" /> : <ImageOrPdf blob={bwBlob} alt="B&W scan" />}
       </div>
     </div>
   );
