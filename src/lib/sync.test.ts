@@ -2,8 +2,8 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { db } from "../data/db";
 import { createExpense, deleteExpense } from "../data/repos";
-import { saveAccount, wipeWorkspace } from "./authClient";
-import { syncNow } from "./sync";
+import { getAccount, saveAccount, wipeWorkspace } from "./authClient";
+import { syncNow, onSessionEnded } from "./sync";
 
 // In-memory mock of the server's sync store, with the same last-write-wins behavior.
 const server = new Map<string, { store: string; recordId: string; updatedAt: number; deleted: boolean; data: unknown }>();
@@ -81,5 +81,23 @@ describe("sync round-trip", () => {
     await saveAccount({ pullCursor: 0, pushHigh: 0 });
     await syncNow();
     expect(await db.expenses.get(exp.id)).toBeUndefined();
+  });
+});
+
+describe("ended login", () => {
+  it("drops the session token, keeps local data, and tells the app", async () => {
+    await createExpense(
+      { date: "2026-06-01", description: "taxi", amountVND: 1, originalAmount: null, originalCurrency: null, exchangeRate: null, rateSource: "", country: "Vietnam", accountCode: "VN", notes: "" } as never,
+      { mimeType: "image/png", blob: blob("O") },
+      { mimeType: "image/png", blob: blob("B") },
+    );
+    vi.stubGlobal("fetch", vi.fn(() => jsonRes({ error: "session expired" }, 401)));
+    const told = vi.fn();
+    const off = onSessionEnded(told);
+    await syncNow();
+    off();
+    expect(told).toHaveBeenCalledOnce();
+    expect((await getAccount()).sessionToken).toBeNull();
+    expect(await db.expenses.count()).toBe(1);
   });
 });

@@ -23,7 +23,7 @@ import {
   clearUnlock,
 } from "./lib/authClient";
 import Onboarding from "./screens/Onboarding";
-import { syncNow, hasLocalData } from "./lib/sync";
+import { syncNow, hasLocalData, onSessionEnded } from "./lib/sync";
 import { getSessionToken } from "./lib/api";
 import "./screens/Onboarding.css";
 
@@ -59,6 +59,9 @@ export default function App() {
       setLoaded(true);
     })();
   }, []);
+
+  // The server ended this login (e.g. 30 idle days): re-read the account so the login screen shows.
+  useEffect(() => onSessionEnded(() => void refresh()), [refresh]);
 
   // Background sync while signed in and unlocked. A live SSE channel nudges this device
   // to pull the instant another device pushes; the interval poll is a fallback for when

@@ -52,6 +52,8 @@ export function resolveSession(token: string): AccountRow | undefined {
     destroySession(token);
     return undefined;
   }
+  // Sliding expiry: a device in use never gets signed out; only 30 idle days end a session.
+  db.prepare("UPDATE sessions SET expires_at = ? WHERE token = ?").run(Date.now() + SESSION_TTL_MS, token);
   return findById(s.account_id);
 }
 

@@ -62,6 +62,14 @@ interface WireRecord {
   data?: unknown;
 }
 
+class SessionEnded extends Error {}
+const sessionEndedListeners = new Set<() => void>();
+/** Fires when the server rejects this device's login, so App can show the login screen. */
+export function onSessionEnded(fn: () => void): () => void {
+  sessionEndedListeners.add(fn);
+  return () => sessionEndedListeners.delete(fn);
+}
+
 let syncing = false;
 let pending = false;
 
@@ -107,6 +115,12 @@ export async function syncNow(): Promise<void> {
       emitSynced();
     }
   } catch (e) {
+    if (e instanceof SessionEnded) {
+      // The server dropped this login. Keep local data; the next login re-syncs it.
+      await saveAccount({ sessionToken: null });
+      for (const fn of sessionEndedListeners) fn();
+      return;
+    }
     // Network/offline: leave cursors as-is and try again next tick.
     console.warn("[sync] failed, will retry", e);
   } finally {
@@ -147,6 +161,7 @@ async function push(): Promise<void> {
     headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ records }),
   });
+  if (res.status === 401) throw new SessionEnded();
   if (!res.ok) throw new Error(`push failed ${res.status}`);
   await saveAccount({ pushHigh: high });
 }
@@ -154,6 +169,7 @@ async function push(): Promise<void> {
 async function pull(): Promise<void> {
   const account = await getAccount();
   const res = await fetch(`/api/sync?since=${account.pullCursor}`, { headers: authHeaders() });
+  if (res.status === 401) throw new SessionEnded();
   if (!res.ok) throw new Error(`pull failed ${res.status}`);
   const body = (await res.json()) as { records: WireRecord[]; cursor: number };
 
